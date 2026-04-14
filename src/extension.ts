@@ -4,9 +4,10 @@ import * as path from 'path';
 import { Credentials, Identity, loginWithCookies, fetchProjects } from './api';
 import { PdfPoller } from './poller';
 import { AuthStore } from './auth';
-import { GitSyncEngine, SyncStatus } from './gitSync';
+import { GitSyncEngine, SyncStatus, CommitEntry } from './gitSync';
 import { CloneManager } from './cloneManager';
-import { getRemoteUrl, isOverleafRepo } from './gitUtils';
+import { execGit, getRemoteUrl, isOverleafRepo } from './gitUtils';
+import * as os from 'os';
 import { SidebarProvider } from './sidebarView';
 import { registerFormatter } from './latexFormatter';
 import { SessionManager } from './sessionManager';
@@ -23,6 +24,9 @@ let pdfStatusBar: vscode.StatusBarItem | undefined;
 let outputPdfPath: string | undefined;
 let outputChannel: vscode.OutputChannel;
 let sidebar: SidebarProvider;
+const commitHistory: CommitEntry[] = [];
+const MAX_COMMIT_HISTORY = 50;
+let enrichTimer: ReturnType<typeof setTimeout> | undefined;
 
 // ── Helpers ──
 
@@ -186,6 +190,16 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebar),
     );
 
+    // Sidebar message handler for parameterized commands (e.g. viewRangeDiff)
+    sidebar.onMessage(async (msg: any) => {
+        if (msg.type === 'viewRangeDiff') {
+            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            if (ws && msg.fromSha && msg.toSha) {
+                await openRangeDiff(ws, msg.fromSha, msg.toSha);
+            }
+        }
+    });
+
     // Status bars
     syncStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -9);
     syncStatusBar.command = 'overleaf-gitbridge.stopSync';
@@ -270,10 +284,9 @@ export function activate(context: vscode.ExtensionContext) {
                 if (action !== 'Start Anyway') { return; }
             }
 
-            const quietSeconds = getConfig<number>('quietSeconds', 30);
-            const pollSeconds = getConfig<number>('pollSeconds', 2);
+            const pollSeconds = getConfig<number>('pollSeconds', 1);
 
-            syncEngine = new GitSyncEngine(ws, quietSeconds, pollSeconds, {
+            syncEngine = new GitSyncEngine(ws, pollSeconds, {
                 onStatusChange: (status, message) => {
                     updateSyncStatusBar(status, message);
                     sidebar.setSyncStatus(status, message);
@@ -282,6 +295,12 @@ export function activate(context: vscode.ExtensionContext) {
                         conflictScanner.clear();
                         cleanupDiffTmpFiles();
                         sidebar.clearConflict();
+                    }
+                    // Re-enrich commit statuses after events that change HEAD
+                    // (pull, restore, merge) — NOT on every 'Synced' poll tick
+                    if (status === 'watching' && commitHistory.length > 0 &&
+                        (message.includes('Pulled') || message.includes('restored') || message.includes('merged'))) {
+                        scheduleEnrichment(ws);
                     }
                 },
                 onPushSuccess: async () => {
@@ -314,6 +333,13 @@ export function activate(context: vscode.ExtensionContext) {
                             );
                         }
                     });
+                },
+                onCommitSuccess: (entry) => {
+                    commitHistory.unshift(entry);
+                    if (commitHistory.length > MAX_COMMIT_HISTORY) {
+                        commitHistory.length = MAX_COMMIT_HISTORY;
+                    }
+                    scheduleEnrichment(ws);
                 },
             }, outputChannel);
 
@@ -469,6 +495,56 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
+    // ── View Commit Diff (QuickPick or triggered from sidebar) ──
+    context.subscriptions.push(
+        vscode.commands.registerCommand('overleaf-gitbridge.viewCommitDiff', async () => {
+            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            if (!ws) {
+                vscode.window.showErrorMessage('Overleaf GitBridge: No workspace folder open.');
+                return;
+            }
+
+            const mode = getConfig<string>('diffViewMode', 'sidebar');
+            if (mode === 'sidebar') {
+                // Just reveal the sidebar — user interacts with the commit list there
+                await vscode.commands.executeCommand('overleaf-gitbridge.sidebar.focus');
+                return;
+            }
+
+            // QuickPick mode
+            if (commitHistory.length === 0) {
+                vscode.window.showInformationMessage('Overleaf GitBridge: No commits yet. Start sync first.');
+                return;
+            }
+
+            const items = commitHistory.map(c => ({
+                label: `${c.timestamp} · ${c.sha}`,
+                description: `${c.filesChanged} file(s)`,
+                detail: c.summary,
+                sha: c.sha,
+                picked: false,
+            }));
+
+            const picked = await vscode.window.showQuickPick(items, {
+                canPickMany: true,
+                placeHolder: 'Select commits to view aggregated diff (first & last define the range)',
+                ignoreFocusOut: true,
+            });
+
+            if (!picked || picked.length === 0) { return; }
+
+            // Use the full commit list order to determine the range
+            const selectedShas = new Set(picked.map(p => p.sha));
+            const indices = commitHistory
+                .map((c, i) => selectedShas.has(c.sha) ? i : -1)
+                .filter(i => i >= 0);
+            const oldest = commitHistory[Math.max(...indices)];
+            const newest = commitHistory[Math.min(...indices)];
+
+            await openRangeDiff(ws, oldest.sha, newest.sha);
+        }),
+    );
+
     // ── Show Output ──
     context.subscriptions.push(
         vscode.commands.registerCommand('overleaf-gitbridge.showOutput', () => {
@@ -497,17 +573,23 @@ export function activate(context: vscode.ExtensionContext) {
         sidebar.setProject(isOverleaf, projectName);
 
         if (isOverleaf) {
-            vscode.window.showInformationMessage(
-                'Overleaf GitBridge: Overleaf project detected.',
-                'Start Sync',
-                'Start PDF Preview',
-            ).then(choice => {
-                if (choice === 'Start Sync') {
-                    vscode.commands.executeCommand('overleaf-gitbridge.startSync');
-                } else if (choice === 'Start PDF Preview') {
-                    vscode.commands.executeCommand('overleaf-gitbridge.startPdfPreview');
-                }
-            });
+            const autoStart = getConfig<string>('autoStart', 'off');
+            if (autoStart === 'sync') {
+                vscode.commands.executeCommand('overleaf-gitbridge.startSync');
+            } else if (autoStart === 'ask') {
+                vscode.window.showInformationMessage(
+                    'Overleaf GitBridge: Overleaf project detected.',
+                    'Start Sync',
+                    'Start PDF Preview',
+                ).then(choice => {
+                    if (choice === 'Start Sync') {
+                        vscode.commands.executeCommand('overleaf-gitbridge.startSync');
+                    } else if (choice === 'Start PDF Preview') {
+                        vscode.commands.executeCommand('overleaf-gitbridge.startPdfPreview');
+                    }
+                });
+            }
+            // autoStart === 'off': do nothing
         }
     });
 }
@@ -516,6 +598,433 @@ async function refreshSidebarCredentials(): Promise<void> {
     const hasToken = !!(await authStore.getToken());
     const hasCookie = !!(await authStore.getCookie());
     sidebar.setCredentials(hasToken, hasCookie);
+}
+
+function scheduleEnrichment(repoPath: string): void {
+    if (enrichTimer) { clearTimeout(enrichTimer); }
+    enrichTimer = setTimeout(() => {
+        enrichCommitStatuses(repoPath).then(() => {
+            sidebar.setCommitHistory(commitHistory);
+        });
+    }, 300);
+}
+
+const DIFF_IGNORE_WHITESPACE_ARGS = ['--ignore-cr-at-eol', '--ignore-space-at-eol', '--ignore-blank-lines'];
+
+async function getMeaningfulChangedFiles(repoPath: string, fromRef: string, toRef: string): Promise<string[] | undefined> {
+    try {
+        const nameOnly = (await execGit(repoPath, ['diff', '--name-only', ...DIFF_IGNORE_WHITESPACE_ARGS, fromRef, toRef])).trim();
+        return nameOnly ? nameOnly.split(/\r?\n/) : [];
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * Classify each commit in commitHistory using git-blame (line-level accuracy):
+ * - 'orphaned': SHA not reachable from HEAD (e.g. after Overleaf restore)
+ * - 'current': all added lines from this commit still survive in HEAD
+ * - 'partial': only part of this commit's added lines survive in HEAD
+ * - 'superseded': none of this commit's added lines survive in HEAD
+ *
+ * For commits with no numeric add-line stats (deletion-only/binary edge cases),
+ * fallback to file-level blame survival.
+ */
+async function enrichCommitStatuses(repoPath: string): Promise<void> {
+    if (commitHistory.length === 0) { return; }
+
+    // Collect all unique files across all commits
+    const allFiles = new Set<string>();
+    for (const entry of commitHistory) {
+        for (const f of entry.files) { allFiles.add(f); }
+    }
+
+    // For each file, run git blame once and collect surviving line counts by full SHA.
+    const fileBlameLineCounts = new Map<string, Map<string, number>>();
+    for (const file of allFiles) {
+        try {
+            const blame = await execGit(repoPath, ['blame', '--porcelain', 'HEAD', '--', file]);
+            const lineCounts = new Map<string, number>();
+            for (const line of blame.split(/\r?\n/)) {
+                // Porcelain format: each hunk starts with "<40-char-sha> <orig> <final> [<count>]"
+                const m = line.match(/^([0-9a-f]{40})\s+\d+\s+\d+(?:\s+(\d+))?/);
+                if (m) {
+                    const count = m[2] ? Number(m[2]) : 1;
+                    lineCounts.set(m[1], (lineCounts.get(m[1]) || 0) + count);
+                }
+            }
+            fileBlameLineCounts.set(file, lineCounts);
+        } catch { /* file deleted or binary — skip */ }
+    }
+
+    // Classify each commit
+    for (const entry of commitHistory) {
+        // Whitespace/newline-only commit: keep as current, avoid noisy orphaned/superseded.
+        const meaningfulChangedFiles = await getMeaningfulChangedFiles(repoPath, `${entry.sha}~1`, entry.sha);
+        if (meaningfulChangedFiles && meaningfulChangedFiles.length === 0) {
+            entry.status = 'current';
+            continue;
+        }
+
+        // 1) Check if reachable from HEAD
+        let isAncestor = true;
+        try {
+            await execGit(repoPath, ['merge-base', '--is-ancestor', entry.sha, 'HEAD']);
+        } catch {
+            isAncestor = false;
+        }
+
+        // Resolve to full SHA when possible (avoids short-SHA prefix collisions).
+        let entryFullSha = '';
+        try {
+            entryFullSha = (await execGit(repoPath, ['rev-parse', entry.sha])).trim();
+        } catch { /* fallback to short prefix match */ }
+        const matchesEntrySha = (fullSha: string): boolean => {
+            if (entryFullSha.length === 40) { return fullSha === entryFullSha; }
+            return fullSha.startsWith(entry.sha);
+        };
+
+        // Gather per-file add-line stats for this commit.
+        const addedLinesByFile = new Map<string, number>();
+        try {
+            const numstat = (await execGit(repoPath, ['diff', '--numstat', `${entry.sha}~1`, entry.sha])).trim();
+            for (const line of numstat.split(/\r?\n/)) {
+                const m = line.match(/^(\d+|-)\t(\d+|-)\t(.+)$/);
+                if (m) {
+                    const added = m[1] === '-' ? 0 : Number(m[1]);
+                    addedLinesByFile.set(m[3], Number.isFinite(added) ? added : 0);
+                }
+            }
+        } catch { /* fallback to file-level classification below */ }
+
+        // 2) Check survival in HEAD by git-blame attribution.
+        let touchedFileCount = 0;
+        let survivingFileCount = 0;
+        let totalAddedLines = 0;
+        let survivingAddedLines = 0;
+        for (const file of entry.files) {
+            touchedFileCount++;
+            const lineCounts = fileBlameLineCounts.get(file);
+            let survivedLinesInFile = 0;
+            if (lineCounts) {
+                for (const [fullSha, count] of lineCounts) {
+                    if (matchesEntrySha(fullSha)) {
+                        survivedLinesInFile += count;
+                    }
+                }
+            }
+
+            if (survivedLinesInFile > 0) {
+                survivingFileCount++;
+            }
+
+            const addedLines = addedLinesByFile.get(file) || 0;
+            if (addedLines > 0) {
+                totalAddedLines += addedLines;
+                survivingAddedLines += Math.min(survivedLinesInFile, addedLines);
+            }
+        }
+
+        // Prefer line-level classification when we have add-line stats.
+        if (totalAddedLines > 0) {
+            if (survivingAddedLines === 0) {
+                entry.status = isAncestor ? 'superseded' : 'orphaned';
+            } else if (survivingAddedLines >= totalAddedLines) {
+                entry.status = 'current';
+            } else {
+                entry.status = 'partial';
+            }
+            continue;
+        }
+
+        // Fallback for deletion-only / binary edge cases.
+        if (survivingFileCount === 0) {
+            entry.status = isAncestor ? 'superseded' : 'orphaned';
+        } else if (survivingFileCount === touchedFileCount) {
+            entry.status = 'current';
+        } else {
+            entry.status = 'partial';
+        }
+    }
+}
+
+function collectAddedLineNumbersFromPatch(diffPatch: string): Set<number> {
+    const added = new Set<number>();
+    let newLine = 0;
+
+    for (const line of diffPatch.split(/\r?\n/)) {
+        const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+        if (hunk) {
+            newLine = Number(hunk[2]);
+            continue;
+        }
+
+        if (
+            line.startsWith('diff --git') ||
+            line.startsWith('index ') ||
+            line.startsWith('---') ||
+            line.startsWith('+++')
+        ) {
+            continue;
+        }
+
+        if (line.startsWith('+')) {
+            added.add(newLine);
+            newLine++;
+            continue;
+        }
+
+        if (line.startsWith(' ')) {
+            newLine++;
+        }
+    }
+
+    return added;
+}
+
+function collectSurvivingOrigLinesFromBlame(blameText: string, commitFullSha: string): Set<number> {
+    const surviving = new Set<number>();
+
+    for (const line of blameText.split(/\r?\n/)) {
+        const m = line.match(/^([0-9a-f]{40})\s+(\d+)\s+\d+(?:\s+(\d+))?$/);
+        if (!m || m[1] !== commitFullSha) { continue; }
+
+        const origStart = Number(m[2]);
+        const count = m[3] ? Number(m[3]) : 1;
+        for (let i = 0; i < count; i++) {
+            surviving.add(origStart + i);
+        }
+    }
+
+    return surviving;
+}
+
+async function annotatePartialCommitFileContent(
+    repoPath: string,
+    baseRef: string,
+    commitSha: string,
+    commitFullSha: string,
+    file: string,
+    commitContent: string,
+): Promise<{ content: string; overwrittenCount: number; addedCount: number }> {
+    if (commitFullSha.length !== 40) {
+        return { content: commitContent, overwrittenCount: 0, addedCount: 0 };
+    }
+
+    try {
+        const patch = await execGit(repoPath, ['diff', '--unified=0', baseRef, commitSha, '--', file]);
+        const addedLineNumbers = collectAddedLineNumbersFromPatch(patch);
+        const addedCount = addedLineNumbers.size;
+        if (addedLineNumbers.size === 0) {
+            return { content: commitContent, overwrittenCount: 0, addedCount };
+        }
+
+        const blame = await execGit(repoPath, ['blame', '--line-porcelain', 'HEAD', '--', file]);
+        const survivingOrigLines = collectSurvivingOrigLinesFromBlame(blame, commitFullSha);
+        if (survivingOrigLines.size === 0) {
+            // Keep going: this means all added lines are overwritten.
+        }
+
+        const eol = commitContent.includes('\r\n') ? '\r\n' : '\n';
+        const lines = commitContent.split(/\r?\n/);
+        let overwrittenCount = 0;
+
+        for (const lineNo of addedLineNumbers) {
+            if (survivingOrigLines.has(lineNo)) { continue; }
+
+            const idx = lineNo - 1;
+            if (idx < 0 || idx >= lines.length) { continue; }
+
+            lines[idx] = `[OVERWRITTEN LATER] ${lines[idx]}`;
+            overwrittenCount++;
+        }
+
+        if (overwrittenCount === 0) {
+            return { content: commitContent, overwrittenCount: 0, addedCount };
+        }
+
+        return {
+            content: lines.join(eol),
+            overwrittenCount,
+            addedCount,
+        };
+    } catch {
+        return { content: commitContent, overwrittenCount: 0, addedCount: 0 };
+    }
+}
+
+async function openRangeDiff(repoPath: string, fromSha: string, toSha: string): Promise<void> {
+    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitbridge-diff');
+    if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+    }
+
+    // Determine the base ref for the diff
+    let baseRef = `${fromSha}~1`;
+    let changedFiles: string[];
+    try {
+        const nameOnly = (await execGit(repoPath, ['diff', '--name-only', baseRef, toSha])).trim();
+        changedFiles = nameOnly ? nameOnly.split(/\r?\n/) : [];
+    } catch {
+        baseRef = fromSha;
+        try {
+            const nameOnly = (await execGit(repoPath, ['diff', '--name-only', baseRef, toSha])).trim();
+            changedFiles = nameOnly ? nameOnly.split(/\r?\n/) : [];
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Overleaf GitBridge: Could not get diff — ${err.message}`);
+            return;
+        }
+    }
+
+    const rawChangedCount = changedFiles.length;
+    const meaningfulChanged = await getMeaningfulChangedFiles(repoPath, baseRef, toSha);
+    if (meaningfulChanged) {
+        changedFiles = meaningfulChanged;
+    }
+
+    if (changedFiles.length === 0) {
+        if (rawChangedCount > 0 && meaningfulChanged && meaningfulChanged.length === 0) {
+            vscode.window.showInformationMessage(
+                'Overleaf GitBridge: Only whitespace/newline changes found (ignored).',
+            );
+        } else {
+            vscode.window.showInformationMessage('Overleaf GitBridge: No file changes in selected range.');
+        }
+        return;
+    }
+
+    // Gather per-file stats (additions, deletions, status) for the QuickPick
+    const fileStats = new Map<string, { added: string; deleted: string; status: string }>();
+    try {
+        const numstat = (await execGit(repoPath, ['diff', '--numstat', baseRef, toSha])).trim();
+        for (const line of numstat.split(/\r?\n/)) {
+            const m = line.match(/^(\d+|-)\t(\d+|-)\t(.+)$/);
+            if (m) { fileStats.set(m[3], { added: m[1], deleted: m[2], status: 'M' }); }
+        }
+    } catch { /* stats are optional, continue without them */ }
+    try {
+        const nameStatus = (await execGit(repoPath, ['diff', '--name-status', baseRef, toSha])).trim();
+        for (const line of nameStatus.split(/\r?\n/)) {
+            const m = line.match(/^([ADMR])\t(.+)$/);
+            if (m) {
+                const existing = fileStats.get(m[2]);
+                if (existing) { existing.status = m[1]; } else { fileStats.set(m[2], { added: '?', deleted: '?', status: m[1] }); }
+            }
+        }
+    } catch { /* optional */ }
+
+    // If multiple files, let the user pick which ones to view
+    let filesToOpen = changedFiles;
+    if (changedFiles.length > 1) {
+        const statusIcons: Record<string, string> = { A: '$(diff-added)', D: '$(diff-removed)', M: '$(diff-modified)', R: '$(diff-renamed)' };
+        const items = changedFiles.map(file => {
+            const stat = fileStats.get(file);
+            const statusChar = stat?.status || 'M';
+            const icon = statusIcons[statusChar] || '$(file)';
+            const additions = stat && stat.added !== '?' ? `+${stat.added}` : '';
+            const deletions = stat && stat.deleted !== '?' ? `-${stat.deleted}` : '';
+            const lineInfo = [additions, deletions].filter(Boolean).join(' / ');
+            return {
+                label: `${icon}  ${file}`,
+                description: lineInfo,
+                detail: statusChar === 'A' ? 'New file' : statusChar === 'D' ? 'Deleted' : statusChar === 'R' ? 'Renamed' : 'Modified',
+                file,
+                picked: true,
+            };
+        });
+
+        const picked = await vscode.window.showQuickPick(items, {
+            canPickMany: true,
+            placeHolder: `${changedFiles.length} file(s) changed in ${fromSha}..${toSha} — select files to diff`,
+            ignoreFocusOut: true,
+        });
+
+        if (!picked || picked.length === 0) { return; }
+        filesToOpen = picked.map(p => p.file);
+    }
+
+    const isSingleCommit = fromSha === toSha;
+    let singleCommitFullSha = '';
+    if (isSingleCommit) {
+        try {
+            singleCommitFullSha = (await execGit(repoPath, ['rev-parse', toSha])).trim();
+        } catch { /* best-effort */ }
+    }
+
+    let opened = 0;
+    let markedFileCount = 0;
+    let markedLineCount = 0;
+    for (const file of filesToOpen) {
+        try {
+            // Get old version
+            let oldContent: string;
+            try {
+                oldContent = await execGit(repoPath, ['show', `${baseRef}:${file}`]);
+            } catch {
+                oldContent = ''; // file didn't exist before
+            }
+
+            // Get new version: use working tree if toSha is HEAD, otherwise git show
+            let newUri: vscode.Uri;
+            let title = `${file}: ${fromSha} ↔ ${toSha}`;
+            const headSha = (await execGit(repoPath, ['rev-parse', '--short', 'HEAD'])).trim();
+            if (toSha === headSha || toSha === 'HEAD') {
+                const localPath = path.join(repoPath, file);
+                if (fs.existsSync(localPath)) {
+                    newUri = vscode.Uri.file(localPath);
+                } else {
+                    continue;
+                }
+            } else {
+                let newContent = await execGit(repoPath, ['show', `${toSha}:${file}`]);
+
+                if (isSingleCommit && singleCommitFullSha.length === 40) {
+                    const annotated = await annotatePartialCommitFileContent(
+                        repoPath,
+                        baseRef,
+                        toSha,
+                        singleCommitFullSha,
+                        file,
+                        newContent,
+                    );
+                    if (annotated.overwrittenCount > 0) {
+                        newContent = annotated.content;
+                        markedFileCount++;
+                        markedLineCount += annotated.overwrittenCount;
+                        const overwriteTag = annotated.addedCount > 0 && annotated.overwrittenCount >= annotated.addedCount
+                            ? 'overwritten'
+                            : 'partial';
+                        title = `${file}: ${fromSha} ↔ ${toSha} [${overwriteTag}, ${annotated.overwrittenCount} overwritten]`;
+                    }
+                }
+
+                const safeName = file.replace(/[/\\]/g, '__');
+                const newTmp = path.join(tmpDir, `new_${toSha}_${safeName}`);
+                fs.writeFileSync(newTmp, newContent, 'utf-8');
+                newUri = vscode.Uri.file(newTmp);
+            }
+
+            // Write old version to temp
+            const safeName = file.replace(/[/\\]/g, '__');
+            const oldTmp = path.join(tmpDir, `old_${fromSha}_${safeName}`);
+            fs.writeFileSync(oldTmp, oldContent, 'utf-8');
+            const oldUri = vscode.Uri.file(oldTmp);
+
+            await vscode.commands.executeCommand('vscode.diff', oldUri, newUri, title, { preview: false });
+            opened++;
+        } catch (err: any) {
+            outputChannel.appendLine(`[Diff] Could not open diff for ${file}: ${err.message}`);
+        }
+    }
+
+    if (opened > 0) {
+        const markerSuffix = markedFileCount > 0
+            ? ` Marked ${markedLineCount} overwritten added line(s) in ${markedFileCount} file(s).`
+            : '';
+        vscode.window.showInformationMessage(
+            `Overleaf GitBridge: Opened ${opened} diff(s) for range ${fromSha}..${toSha}.${markerSuffix}`,
+        );
+    }
 }
 
 export function deactivate() {

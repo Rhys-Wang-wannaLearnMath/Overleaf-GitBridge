@@ -6,21 +6,29 @@ import { getDiffSummary, detectFileConflicts } from './conflictHandler';
 
 export type SyncStatus = 'idle' | 'watching' | 'committing' | 'pushing' | 'pulling' | 'conflict' | 'error';
 
+export interface CommitEntry {
+    sha: string;
+    timestamp: string;
+    filesChanged: number;
+    summary: string;
+    files: string[];
+    /** current = fully preserved in HEAD; partial = partially overwritten; superseded = fully overwritten; orphaned = not in current branch (e.g. after restore) */
+    status: 'current' | 'partial' | 'superseded' | 'orphaned';
+}
+
 export interface GitSyncEvents {
     onStatusChange: (status: SyncStatus, message: string) => void;
     onPushSuccess: () => void | Promise<void>;
     onError: (message: string) => void;
     onConflict?: (conflictingFiles: string[], details: import('./conflictHandler').FileConflictResult, diffSummary: string, localAhead: number, remoteBehind: number) => void;
     onMergeComplete?: (mergedFiles: string[]) => void;
+    onCommitSuccess?: (entry: CommitEntry) => void;
 }
 
 export class GitSyncEngine {
     private timer: ReturnType<typeof setInterval> | undefined;
-    private countdownTimer: ReturnType<typeof setInterval> | undefined;
     private running = false;
     private busy = false;
-    private lastStatus = '';
-    private pendingSince = 0;
     private _inConflict = false;
     private _conflictFiles: string[] = [];
     private _conflictNeedsMerge = false;
@@ -31,7 +39,6 @@ export class GitSyncEngine {
 
     constructor(
         private repoPath: string,
-        private quietSeconds: number,
         private pollSeconds: number,
         private events: GitSyncEvents,
         private outputChannel: vscode.OutputChannel,
@@ -52,7 +59,7 @@ export class GitSyncEngine {
         this.running = true;
         this.events.onStatusChange('watching', 'Sync started');
         this.log('Sync engine started. Watching for changes...');
-        this.log(`Rules: quiet period = ${this.quietSeconds}s, poll interval = ${this.pollSeconds}s`);
+        this.log(`Rules: poll interval = ${this.pollSeconds}s, commit on detect`);
 
         this.tick(); // immediate first tick
         this.timer = setInterval(() => this.tick(), this.pollSeconds * 1000);
@@ -244,11 +251,8 @@ export class GitSyncEngine {
             clearInterval(this.timer);
             this.timer = undefined;
         }
-        this.stopCountdown();
         this.running = false;
         this.busy = false;
-        this.lastStatus = '';
-        this.pendingSince = 0;
         this._inConflict = false;
         this._conflictFiles = [];
         this._conflictNeedsMerge = false;
@@ -330,13 +334,9 @@ export class GitSyncEngine {
             this.log(`git status failed: ${err.message}`);
             return;
         }
-        const now = Math.floor(Date.now() / 1000);
 
         // --- No local changes: check remote for new commits ---
         if (!status) {
-            this.lastStatus = '';
-            this.pendingSince = 0;
-
             await this.checkAndPullRemote();
             return;
         }
@@ -352,58 +352,9 @@ export class GitSyncEngine {
             return;
         }
 
-        // --- No remote changes: normal quiet period flow ---
-        if (status !== this.lastStatus) {
-            if (this.pendingSince === 0) {
-                this.log('Local changes detected. Waiting for quiet period...');
-            } else {
-                this.log('New changes detected. Resetting quiet timer...');
-            }
-            this.pendingSince = now;
-            this.lastStatus = status;
-            this.startCountdown();
-            return;
-        }
-
-        // --- Quiet period not yet met ---
-        if (this.pendingSince > 0 && (now - this.pendingSince) < this.quietSeconds) {
-            return;
-        }
-
-        // --- Quiet period met: commit and push ---
-        if (this.pendingSince > 0) {
-            this.stopCountdown();
-            this.log('Quiet period met. Committing...');
-            await this.commitAndPush();
-        }
-    }
-
-    private startCountdown(): void {
-        this.stopCountdown();
-        // Update display immediately
-        this.updateCountdownDisplay();
-        // Then refresh every 1 second
-        this.countdownTimer = setInterval(() => this.updateCountdownDisplay(), 1000);
-    }
-
-    private stopCountdown(): void {
-        if (this.countdownTimer) {
-            clearInterval(this.countdownTimer);
-            this.countdownTimer = undefined;
-        }
-    }
-
-    private updateCountdownDisplay(): void {
-        if (this.pendingSince <= 0) {
-            this.stopCountdown();
-            return;
-        }
-        const now = Math.floor(Date.now() / 1000);
-        const elapsed = now - this.pendingSince;
-        const remaining = this.quietSeconds - elapsed;
-        if (remaining > 0) {
-            this.events.onStatusChange('watching', `Committing in ${remaining}s...`);
-        }
+        // --- No remote changes: commit immediately ---
+        this.log('Local changes detected. Committing immediately...');
+        await this.commitAndPush();
     }
 
     private getConflictStrategy(): string {
@@ -434,8 +385,6 @@ export class GitSyncEngine {
             // No file overlap — safe auto-merge regardless of strategy
             this.log(`No file overlap. Safe auto-merge (remote: ${fileResult.remoteOnly.length} files, local: ${fileResult.localOnly.length} files)`);
             await this.safeAutoMerge();
-            this.pendingSince = 0;
-            this.lastStatus = '';
             return;
         }
 
@@ -478,8 +427,6 @@ export class GitSyncEngine {
                 }
                 // Pull remaining
                 await this.safeAutoMerge();
-                this.pendingSince = 0;
-                this.lastStatus = '';
             } catch (err: any) {
                 this.log(`Remote-first failed: ${err.message}`);
                 this.events.onStatusChange('error', 'Remote-first merge failed');
@@ -506,7 +453,6 @@ export class GitSyncEngine {
         this._inConflict = true;
         this._conflictFiles = conflicting;
         this._conflictNeedsMerge = true;
-        this.stopCountdown();
 
         const diffSummary = await getDiffSummary(this.repoPath, this.remote, this.branch);
         this.events.onStatusChange('conflict', `Conflict in ${conflicting.length} file(s)`);
@@ -528,7 +474,6 @@ export class GitSyncEngine {
      * Used when remote and local modify different files.
      */
     private async safeAutoMerge(): Promise<void> {
-        this.stopCountdown();
         this.events.onStatusChange('pulling', 'Auto-merging (safe)...');
         try {
             await execGit(this.repoPath, ['stash', 'push', '-m', 'overleaf-gitbridge-auto']);
@@ -709,27 +654,59 @@ export class GitSyncEngine {
 
     private async fetchRemoteSilent(): Promise<void> {
         try {
-            await execGit(this.repoPath, ['fetch', this.remote, this.branch, '--quiet']);
+            await execGit(this.repoPath, ['fetch', this.remote, `+refs/heads/${this.branch}:refs/remotes/${this.remote}/${this.branch}`, '--quiet']);
         } catch (err: any) {
             this.log(`Fetch failed: ${err.message}`);
         }
     }
 
     private async checkAndPullRemote(): Promise<void> {
+        // Use force-fetch (+refspec) so the tracking ref is always updated,
+        // even after a remote force-push (e.g. Overleaf "Restore" old version).
         try {
-            await execGit(this.repoPath, ['fetch', this.remote, this.branch, '--quiet']);
+            await execGit(this.repoPath, ['fetch', this.remote, `+refs/heads/${this.branch}:refs/remotes/${this.remote}/${this.branch}`, '--quiet']);
         } catch (err: any) {
             this.log(`Fetch failed: ${err.message}`);
             return;
         }
 
+        // Detect remote history rewrite (Overleaf restore):
+        // If local HEAD is NOT an ancestor of origin/master, remote was force-pushed.
+        const remoteRewritten = await this.isRemoteRewritten();
+
         const counts = await this.getAheadBehind();
+
+        // Record HEAD before any pull/reset so we can emit pulled commits afterwards
+        let headBefore: string | undefined;
+        try {
+            headBefore = (await execGit(this.repoPath, ['rev-parse', '--short', 'HEAD'])).trim();
+        } catch { /* ignore */ }
+
+        if (remoteRewritten) {
+            // Remote history was rewritten (e.g. Overleaf restore via force-push).
+            // Local has no uncommitted changes (we're in the no-status branch),
+            // so we can safely reset to the remote.
+            this.log(`Remote history rewritten (Overleaf restore?). Local ahead=${counts.ahead}, behind=${counts.behind}. Resetting to remote...`);
+            this.events.onStatusChange('pulling', 'Remote restored — resetting to remote...');
+            try {
+                await execGit(this.repoPath, ['reset', '--hard', `${this.remote}/${this.branch}`]);
+                this.log('Reset to remote successful after history rewrite.');
+                await this.emitPulledCommits(headBefore);
+                this.events.onStatusChange('watching', 'Synced (remote restored)');
+            } catch (err: any) {
+                this.log(`Reset to remote failed: ${err.message}`);
+                this.events.onStatusChange('error', 'Reset to remote failed');
+            }
+            return;
+        }
+
         if (counts.behind > 0 && counts.ahead === 0) {
             this.events.onStatusChange('pulling', 'Pulling remote changes...');
             this.log(`Remote has ${counts.behind} new commit(s). Auto-pulling...`);
             try {
                 const result = await execGit(this.repoPath, ['pull', '--ff-only', this.remote, this.branch]);
                 this.log(`Pull successful: ${result.trim()}`);
+                await this.emitPulledCommits(headBefore);
                 this.events.onStatusChange('watching', 'Pulled remote changes');
             } catch (err: any) {
                 this.log(`Auto-pull failed: ${err.message}`);
@@ -745,6 +722,7 @@ export class GitSyncEngine {
             try {
                 await execGit(this.repoPath, ['pull', '--no-rebase', this.remote, this.branch]);
                 this.log('Merge successful. Pushing...');
+                await this.emitPulledCommits(headBefore);
                 await this.doPush();
             } catch (err: any) {
                 this.log(`Merge failed: ${err.message}`);
@@ -763,6 +741,98 @@ export class GitSyncEngine {
                     await this.enterConflictFlow(counts);
                 }
             }
+        }
+    }
+
+    /**
+     * After a pull/reset, enumerate commits between oldHead and new HEAD
+     * and fire onCommitSuccess for each so they appear in commit history.
+     */
+    private async emitPulledCommits(oldHead?: string): Promise<void> {
+        if (!this.events.onCommitSuccess || !oldHead) { return; }
+        try {
+            const newHead = (await execGit(this.repoPath, ['rev-parse', '--short', 'HEAD'])).trim();
+            if (newHead === oldHead) { return; }
+
+            // Get commits from oldHead (exclusive) to HEAD, oldest first
+            const log = (await execGit(this.repoPath, [
+                'log', '--format=%h|%aI|%s', '--reverse', `${oldHead}..HEAD`,
+            ])).trim();
+            if (!log) { return; }
+
+            for (const line of log.split(/\r?\n/)) {
+                const pipeIdx = line.indexOf('|');
+                const pipeIdx2 = line.indexOf('|', pipeIdx + 1);
+                if (pipeIdx < 0 || pipeIdx2 < 0) { continue; }
+                const sha = line.substring(0, pipeIdx);
+                const isoTime = line.substring(pipeIdx + 1, pipeIdx2);
+                const msg = line.substring(pipeIdx2 + 1);
+
+                let files: string[] = [];
+                let filesChanged = 0;
+                let summary = '';
+                try {
+                    const nameOnly = (await execGit(this.repoPath, ['diff', '--name-only', `${sha}~1`, sha])).trim();
+                    files = nameOnly ? nameOnly.split(/\r?\n/) : [];
+                    filesChanged = files.length;
+                    const numstat = (await execGit(this.repoPath, ['diff', '--numstat', `${sha}~1`, sha])).trim();
+                    const parts: string[] = [];
+                    if (numstat) {
+                        for (const ns of numstat.split(/\r?\n/)) {
+                            const [a, d, f] = ns.split(/\t/);
+                            if (f) { parts.push(`+${a} -${d} ${f}`); }
+                        }
+                    }
+                    summary = parts.length > 0 ? parts.join(', ') : msg;
+                } catch {
+                    summary = msg;
+                }
+
+                const time = new Date(isoTime).toLocaleTimeString();
+                this.events.onCommitSuccess({
+                    sha,
+                    timestamp: `${time} [remote]`,
+                    filesChanged,
+                    summary,
+                    files,
+                    status: 'current',
+                });
+            }
+        } catch (err: any) {
+            this.log(`emitPulledCommits failed: ${err.message}`);
+        }
+    }
+
+    /**
+     * Detect if remote history was rewritten (e.g. Overleaf Restore).
+     * Returns true if origin/branch is NOT a descendant of HEAD
+     * (i.e. remote was force-pushed to an older or divergent commit).
+     */
+    private async isRemoteRewritten(): Promise<boolean> {
+        try {
+            // merge-base --is-ancestor A B => exit 0 if A is ancestor of B
+            // We check: is origin/master an ancestor of HEAD?
+            // If YES => normal (remote is behind or equal) => not rewritten
+            // We also check: is HEAD an ancestor of origin/master?
+            // If YES => normal fast-forward => not rewritten
+            // If NEITHER => diverged / rewritten
+            try {
+                await execGit(this.repoPath, ['merge-base', '--is-ancestor', `${this.remote}/${this.branch}`, 'HEAD']);
+                // origin/master is ancestor of HEAD => local is ahead, not rewritten
+                return false;
+            } catch { /* not an ancestor */ }
+
+            try {
+                await execGit(this.repoPath, ['merge-base', '--is-ancestor', 'HEAD', `${this.remote}/${this.branch}`]);
+                // HEAD is ancestor of origin/master => normal fast-forward
+                return false;
+            } catch { /* not an ancestor */ }
+
+            // Neither is ancestor of the other — histories have diverged.
+            // This typically means force-push (Overleaf restore).
+            return true;
+        } catch {
+            return false;
         }
     }
 
@@ -801,9 +871,39 @@ export class GitSyncEngine {
             return;
         }
 
+        // Fire onCommitSuccess with commit info
+        if (this.events.onCommitSuccess) {
+            try {
+                const sha = (await execGit(this.repoPath, ['rev-parse', '--short', 'HEAD'])).trim();
+                const stat = (await execGit(this.repoPath, ['diff', '--stat', 'HEAD~1', 'HEAD'])).trim();
+                const nameOnly = (await execGit(this.repoPath, ['diff', '--name-only', 'HEAD~1', 'HEAD'])).trim();
+                const filesList = nameOnly ? nameOnly.split(/\r?\n/) : [];
+                const filesChanged = filesList.length;
+                // Build a compact summary: "+N -M file" for each changed file
+                const numstat = (await execGit(this.repoPath, ['diff', '--numstat', 'HEAD~1', 'HEAD'])).trim();
+                const summaryParts: string[] = [];
+                if (numstat) {
+                    for (const line of numstat.split(/\r?\n/)) {
+                        const [added, deleted, file] = line.split(/\t/);
+                        if (file) {
+                            summaryParts.push(`+${added} -${deleted} ${file}`);
+                        }
+                    }
+                }
+                this.events.onCommitSuccess({
+                    sha,
+                    timestamp: new Date().toLocaleTimeString(),
+                    filesChanged,
+                    summary: summaryParts.join(', ') || stat,
+                    files: filesList,
+                    status: 'current',
+                });
+            } catch { /* best-effort */ }
+        }
+
         // Fetch before push to check for conflicts
         try {
-            await execGit(this.repoPath, ['fetch', this.remote, this.branch, '--quiet']);
+            await execGit(this.repoPath, ['fetch', this.remote, `+refs/heads/${this.branch}:refs/remotes/${this.remote}/${this.branch}`, '--quiet']);
         } catch (err: any) {
             this.log(`Fetch failed before push: ${err.message}`);
             this.events.onStatusChange('error', 'Fetch failed');
@@ -878,8 +978,7 @@ export class GitSyncEngine {
     }
 
     private resetPending(): void {
-        this.lastStatus = '';
-        this.pendingSince = 0;
+        // no-op kept for call-site compatibility
     }
 
     private async ensureGitExclude(): Promise<void> {

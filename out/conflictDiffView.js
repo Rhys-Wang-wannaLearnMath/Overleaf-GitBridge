@@ -64,7 +64,7 @@ async function openConflictDiffs(repoPath, conflictingFiles, remote, branch, out
             const remoteUri = vscode.Uri.file(tmpFile);
             const localUri = vscode.Uri.file(path.join(repoPath, file));
             const title = `${file}: Remote (Overleaf) ↔ Local`;
-            await vscode.commands.executeCommand('vscode.diff', remoteUri, localUri, title);
+            await vscode.commands.executeCommand('vscode.diff', remoteUri, localUri, title, { preview: false });
         }
         catch (err) {
             outputChannel.appendLine(`[Diff] Could not open diff for ${file}: ${err.message}`);

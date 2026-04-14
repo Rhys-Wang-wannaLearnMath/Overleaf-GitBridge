@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SyncStatus } from './gitSync';
+import { SyncStatus, CommitEntry } from './gitSync';
 
 export type PdfState = 'stopped' | 'running' | 'error';
 
@@ -16,6 +16,7 @@ interface SidebarState {
     conflictDiffSummary: string;
     conflictLocalAhead: number;
     conflictRemoteBehind: number;
+    commits: CommitEntry[];
 }
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
@@ -36,7 +37,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         conflictDiffSummary: '',
         conflictLocalAhead: 0,
         conflictRemoteBehind: 0,
+        commits: [],
     };
+
+    private _messageHandlers: ((msg: any) => void)[] = [];
 
     constructor(private readonly _extensionUri: vscode.Uri) { }
 
@@ -55,6 +59,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage((msg) => {
             if (msg.command) {
                 vscode.commands.executeCommand(msg.command);
+            }
+            // Forward all messages to registered handlers (for parameterized actions)
+            for (const handler of this._messageHandlers) {
+                handler(msg);
             }
         });
 
@@ -97,6 +105,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.state.conflictDiffSummary = diffSummary;
         this.state.conflictLocalAhead = localAhead;
         this.state.conflictRemoteBehind = remoteBehind;
+        this._updateHtml();
+    }
+
+    onMessage(handler: (msg: any) => void): void {
+        this._messageHandlers.push(handler);
+    }
+
+    setCommitHistory(commits: CommitEntry[]): void {
+        this.state.commits = [...commits];
         this._updateHtml();
     }
 
@@ -148,7 +165,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         const syncButtons = s.syncStatus === 'idle'
             ? `<button class="btn btn-primary" onclick="cmd('overleaf-gitbridge.startSync')">▶  Start Sync</button>`
-            : `<button class="btn btn-danger" onclick="cmd('overleaf-gitbridge.stopSync')">⏹  Stop Sync</button>`;
+            : `<div class="btn-row">
+                <button class="btn btn-danger" onclick="cmd('overleaf-gitbridge.stopSync')">⏹  Stop</button>
+                <button class="btn btn-secondary" onclick="cmd('overleaf-gitbridge.viewCommitDiff')">📊  View Diff</button>
+               </div>`;
 
         const pdfButtons = s.pdfState === 'stopped'
             ? `<button class="btn btn-primary" onclick="cmd('overleaf-gitbridge.startPdfPreview')">▶  Start PDF Preview</button>`
@@ -352,6 +372,105 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         margin-top: 8px;
         margin-bottom: 2px;
     }
+    .commit-list {
+        list-style: none;
+        padding: 0;
+        margin: 6px 0;
+        max-height: 240px;
+        overflow-y: auto;
+    }
+    .commit-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 5px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+    }
+    .commit-item:hover {
+        background: var(--vscode-list-hoverBackground);
+    }
+    .commit-item.selected {
+        background: var(--vscode-list-activeSelectionBackground);
+        color: var(--vscode-list-activeSelectionForeground);
+    }
+    .commit-item input[type="checkbox"] {
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+    .commit-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .commit-header {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+    .commit-sha {
+        font-family: var(--vscode-editor-font-family, monospace);
+        font-size: 11px;
+        color: var(--vscode-textLink-foreground);
+    }
+    .commit-time {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+    }
+    .commit-files {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+    }
+    .commit-summary {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .commit-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+        align-items: center;
+    }
+    .commit-actions .btn { flex: 1; }
+    .commit-sel-info {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+        margin-top: 4px;
+    }
+    .commit-status {
+        font-size: 10px;
+        font-weight: 600;
+        border-radius: 3px;
+        padding: 1px 5px;
+        white-space: nowrap;
+    }
+    .commit-status.current {
+        background: rgba(46, 160, 67, 0.15);
+        color: var(--vscode-charts-green, #3fb950);
+    }
+    .commit-status.partial {
+        background: rgba(255, 193, 7, 0.15);
+        color: var(--vscode-charts-orange, #d97706);
+    }
+    .commit-status.superseded {
+        background: rgba(128, 128, 128, 0.12);
+        color: var(--vscode-descriptionForeground);
+    }
+    .commit-status.orphaned {
+        background: rgba(248, 81, 73, 0.12);
+        color: var(--vscode-charts-red, #f85149);
+    }
+    .commit-item.orphaned {
+        opacity: 0.55;
+    }
+    .commit-item.superseded .commit-summary {
+        text-decoration: line-through;
+        opacity: 0.65;
+    }
 </style>
 </head>
 <body>
@@ -423,18 +542,129 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         ${pdfButtons}
     </div>
 
+    <!-- Commit History -->
+    ${this._renderCommitHistory()}
+
     <div class="divider"></div>
     <button class="link-btn" onclick="cmd('overleaf-gitbridge.showOutput')">📋 Show Output Log</button>
-    <button class="link-btn" onclick="cmd('overleaf-gitbridge.openSettings')">⚙️ Settings (poll interval, quiet period...)</button>
+    <button class="link-btn" onclick="cmd('overleaf-gitbridge.openSettings')">⚙️ Settings</button>
 
 <script>
     const vscode = acquireVsCodeApi();
     function cmd(command) {
         vscode.postMessage({ command });
     }
+
+    // Commit history selection state
+    let lastClickedIdx = -1;
+    const selected = new Set();
+
+    function toggleCommit(idx, event) {
+        if (event && event.shiftKey && lastClickedIdx >= 0) {
+            // Shift-click: select range
+            const lo = Math.min(lastClickedIdx, idx);
+            const hi = Math.max(lastClickedIdx, idx);
+            for (let i = lo; i <= hi; i++) {
+                selected.add(i);
+            }
+        } else {
+            if (selected.has(idx)) {
+                selected.delete(idx);
+            } else {
+                selected.add(idx);
+            }
+        }
+        lastClickedIdx = idx;
+        updateCommitUI();
+    }
+
+    function selectAllCommits(count) {
+        for (let i = 0; i < count; i++) selected.add(i);
+        updateCommitUI();
+    }
+
+    function clearAllCommits() {
+        selected.clear();
+        lastClickedIdx = -1;
+        updateCommitUI();
+    }
+
+    function updateCommitUI() {
+        document.querySelectorAll('.commit-item').forEach((el, i) => {
+            const cb = el.querySelector('input[type=checkbox]');
+            if (cb) cb.checked = selected.has(i);
+            el.classList.toggle('selected', selected.has(i));
+        });
+        const info = document.getElementById('commit-sel-info');
+        if (info) info.textContent = selected.size > 0 ? selected.size + ' selected' : '';
+    }
+
+    function viewSelectedDiff() {
+        if (selected.size === 0) return;
+        const shas = window.__commitShas || [];
+        const indices = Array.from(selected).sort((a, b) => a - b);
+        // indices[0] = newest (smallest index = most recent), indices[last] = oldest
+        const newestSha = shas[indices[0]];
+        const oldestSha = shas[indices[indices.length - 1]];
+        if (newestSha && oldestSha) {
+            vscode.postMessage({ type: 'viewRangeDiff', fromSha: oldestSha, toSha: newestSha });
+        }
+    }
 </script>
 </body>
 </html>`;
+    }
+
+    private _renderCommitHistory(): string {
+        const commits = this.state.commits;
+        if (commits.length === 0) {
+            return `
+            <div class="section">
+                <div class="section-title">📋 Commit History</div>
+                <p class="conflict-hint">No commits yet. Start sync to see history.</p>
+            </div>`;
+        }
+
+        const statusLabel: Record<string, string> = {
+            current: '\u2705 current',
+            partial: '\u26a0\ufe0f partial',
+            superseded: '\u25cb overwritten',
+            orphaned: '\ud83d\udc7b orphaned',
+        };
+
+        const items = commits.map((c, i) => {
+            const st = c.status || 'current';
+            return `
+            <li class="commit-item ${st}" onclick="toggleCommit(${i}, event)">
+                <input type="checkbox" tabindex="-1">
+                <div class="commit-info">
+                    <div class="commit-header">
+                        <span class="commit-sha">${this._esc(c.sha)}</span>
+                        <span class="commit-time">${this._esc(c.timestamp)}</span>
+                        <span class="commit-files">${c.filesChanged} file(s)</span>
+                        <span class="commit-status ${st}">${statusLabel[st] || st}</span>
+                    </div>
+                    <div class="commit-summary" title="${this._esc(c.summary)}">${this._esc(c.summary)}</div>
+                </div>
+            </li>`;
+        }).join('');
+
+        // Inject the SHA array into the webview JS scope
+        const shaArray = JSON.stringify(commits.map(c => c.sha));
+
+        return `
+        <div class="section">
+            <div class="section-title">📋 Commit History</div>
+            <ul class="commit-list">${items}</ul>
+            <div class="commit-actions">
+                <button class="btn btn-secondary" onclick="selectAllCommits(${commits.length})" style="font-size:11px;padding:4px 8px;">Select All</button>
+                <button class="btn btn-secondary" onclick="clearAllCommits()" style="font-size:11px;padding:4px 8px;">Clear</button>
+                <button class="btn btn-primary" onclick="viewSelectedDiff()" style="font-size:11px;padding:4px 8px;">📊 View Diff</button>
+            </div>
+            <div id="commit-sel-info" class="commit-sel-info"></div>
+            <p class="conflict-hint">Click to select commits. Shift+click for range. View aggregated diff for selection.</p>
+            <script>window.__commitShas = ${shaArray};</script>
+        </div>`;
     }
 
     private _esc(str: string): string {

@@ -37,7 +37,7 @@ export async function openConflictDiffs(
 
             const title = `${file}: Remote (Overleaf) ↔ Local`;
 
-            await vscode.commands.executeCommand('vscode.diff', remoteUri, localUri, title);
+            await vscode.commands.executeCommand('vscode.diff', remoteUri, localUri, title, { preview: false });
         } catch (err: any) {
             outputChannel.appendLine(`[Diff] Could not open diff for ${file}: ${err.message}`);
         }

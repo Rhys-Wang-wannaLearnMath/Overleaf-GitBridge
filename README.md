@@ -68,6 +68,31 @@ When both you and a collaborator edit the same file:
 
 Other options: **Pull & Merge** (auto-merge), **Force Push** (overwrite remote), **Terminal** (manual git).
 
+## Commit Labels & Diff Semantics
+
+The sidebar uses exactly four labels:
+
+| Label | Meaning | Typical scenario |
+|-------|---------|------------------|
+| `current` | Meaningful added content is fully preserved in current `HEAD` | Commit content is still fully effective |
+| `partial` | Meaningful added content is only partially preserved | Later commits rewrote part of this commit |
+| `overwritten` | Meaningful added content is fully replaced by later commits | Same branch continued, but this commit's added content no longer survives |
+| `orphaned` | Commit is no longer on the current `HEAD` ancestor chain | Restore / rebase / force-push rewrote branch history |
+
+Quick distinction:
+
+- `overwritten`: history still contains the commit, but its meaningful added content is gone.
+- `orphaned`: the commit itself is no longer in current branch history.
+
+Additional diff behavior:
+
+- **Whitespace/newline-only changes are treated as non-meaningful** in status classification and file-diff selection.
+- If a selected range contains only whitespace/newline changes, the extension reports that they were ignored.
+- When multiple files changed, a file picker is shown so you can choose which diffs to open.
+- Selected files open as separate pinned diff tabs (not preview-overwritten).
+- In single-commit diff mode, overwritten added lines are annotated on the right side with ` [OVERWRITTEN LATER] `.
+- If all meaningful added lines in that file were replaced later, the diff title is tagged as `overwritten`; partial replacement is tagged as `partial`.
+
 ## Commands
 
 | Command | Description |

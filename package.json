@@ -3,7 +3,7 @@
   "displayName": "Overleaf GitBridge",
   "description": "Two-way Git sync and remote PDF preview for Overleaf projects — edit LaTeX in VS Code, auto-sync with collaborators, and compile PDFs without leaving the editor.",
   "version": "0.1.0",
-  "publisher": "TODO-PUBLISHER",
+  "publisher": "RhysWang0405-vsc-studio",
   "author": {
     "name": "Rhys Wang",
     "url": "https://github.com/Rhys-Wang-wannaLearnMath"

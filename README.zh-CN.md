@@ -13,11 +13,11 @@
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=TODO-PUBLISHER.overleaf-gitbridge">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/TODO-PUBLISHER.overleaf-gitbridge?label=VS%20Code%20Marketplace" alt="VS Code Marketplace">
+  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitbridge">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/RhysWang0405-vsc-studio.overleaf-gitbridge?label=VS%20Code%20Marketplace" alt="VS Code Marketplace">
   </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=TODO-PUBLISHER.overleaf-gitbridge">
-    <img src="https://img.shields.io/visual-studio-marketplace/i/TODO-PUBLISHER.overleaf-gitbridge" alt="安装量">
+  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitbridge">
+    <img src="https://img.shields.io/visual-studio-marketplace/i/RhysWang0405-vsc-studio.overleaf-gitbridge" alt="安装量">
   </a>
   <a href="https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge" alt="许可证">

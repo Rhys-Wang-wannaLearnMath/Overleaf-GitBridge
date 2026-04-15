@@ -12,6 +12,18 @@
   <a href="README.md">English</a>
 </p>
 
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=TODO-PUBLISHER.overleaf-gitbridge">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/TODO-PUBLISHER.overleaf-gitbridge?label=VS%20Code%20Marketplace" alt="VS Code Marketplace">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=TODO-PUBLISHER.overleaf-gitbridge">
+    <img src="https://img.shields.io/visual-studio-marketplace/i/TODO-PUBLISHER.overleaf-gitbridge" alt="安装量">
+  </a>
+  <a href="https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge" alt="许可证">
+  </a>
+</p>
+
 ---
 
 ## 功能特性
@@ -23,6 +35,12 @@
 - **凭证安全存储** — Git Token 和 Cookie 存储在 VS Code SecretStorage 中，一次配置持久可用
 - **侧边栏控制面板** — 启动/停止同步、触发 PDF 编译、解决冲突，全部在专用侧边栏中完成
 - **LaTeX 格式化** — 内置 Prettier + unified-latex 格式化器，支持自定义行宽
+
+## 环境要求
+
+- **VS Code** ≥ 1.80.0
+- 系统已安装 **Git** 并加入 `PATH`
+- 一个 **Overleaf** 账户（免费或付费均可），已开启 Git Integration
 
 ## 快速开始
 
@@ -95,36 +113,39 @@ Diff 行为补充：
 
 ## 所有命令
 
-| 命令 | 说明 |
-|------|------|
-| `Clone Project` | 从 Overleaf 项目列表 clone 到本地 |
-| `Configure Git Token` | 配置 Overleaf Git 认证 token |
-| `Configure Cookie` | 配置 Overleaf session cookie |
-| `Clear All Credentials` | 清除所有存储的凭证 |
-| `Start Git Sync` | 启动双向自动同步 |
-| `Stop Git Sync` | 停止同步 |
-| `Start PDF Preview` | 启动 PDF 编译预览 |
-| `Stop PDF Preview` | 停止 PDF 预览 |
-| `Refresh PDF` | 手动触发一次编译 + 预览 |
-| `Show Output Log` | 打开插件输出日志 |
-
 所有命令均以 `Overleaf GitBridge:` 为前缀。
+
+| 命令 | 快捷键 | 说明 |
+|------|--------|------|
+| `Clone Project` | — | 从 Overleaf 项目列表 clone 到本地 |
+| `Configure Git Token` | — | 配置 Overleaf Git 认证 token |
+| `Configure Cookie` | — | 配置 Overleaf session cookie |
+| `Clear All Credentials` | — | 清除所有存储的凭证 |
+| `Start Git Sync` | `Cmd+Alt+S` | 启动双向自动同步 |
+| `Stop Git Sync` | — | 停止同步 |
+| `Start PDF Preview` | — | 启动 PDF 编译预览 |
+| `Stop PDF Preview` | — | 停止 PDF 预览 |
+| `Refresh PDF` | `Cmd+Alt+R` | 手动触发一次编译 + 预览 |
+| `View Commit Diff` | `Cmd+Alt+D` | 浏览提交历史并打开并排 diff |
+| `Show Output Log` | — | 打开插件输出日志 |
+| `Open Settings` | — | 跳转到插件设置页 |
 
 ## 配置项
 
+所有设置前缀为 `overleaf-gitbridge.`。
+
 | 设置 | 默认值 | 说明 |
 |------|--------|------|
-| `serverUrl` | `https://www.overleaf.com` | Overleaf 服务器地址 |
-| `quietSeconds` | `30` | 最后一次编辑后等待的静默期（秒） |
-| `pollSeconds` | `2` | Git 状态轮询间隔（秒） |
-| `pdfPollSeconds` | `0` | PDF 定时轮询间隔；`0` = 仅 push 后触发 |
+| `serverUrl` | `https://www.overleaf.com` | Overleaf 服务器地址（自部署实例请修改） |
+| `pollSeconds` | `1` | Git 状态轮询间隔（秒） |
+| `pdfPollSeconds` | `0` | PDF 定时轮询间隔；`0` = 仅 push 后触发编译 |
+| `autoStart` | `off` | 激活时行为：`off`、`ask`、`sync` |
 | `conflictStrategy` | `smart-merge` | 冲突策略：`smart-merge`、`always-ask`、`local-first`、`remote-first` |
+| `diffViewMode` | `sidebar` | Diff 浏览方式：`sidebar`（侧边栏）或 `quickpick`（弹窗） |
 | `ignorePatterns` | `[".*"]` | 同步时排除的 glob 模式（`.output*` 始终排除） |
 | `formatter.enabled` | `true` | 启用内置 LaTeX 格式化 |
 | `formatter.lineBreak` | `true` | 自动按行宽换行 |
-| `formatter.printWidth` | `80` | 格式化行宽 |
-
-所有设置前缀为 `overleaf-gitbridge.`。
+| `formatter.printWidth` | `80` | LaTeX 格式化行宽 |
 
 ## 冲突策略详解
 
@@ -172,6 +193,10 @@ src/
   gitUtils.ts         # Git 命令封装
 ```
 
+## 参与贡献
+
+欢迎在 [GitHub](https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/issues) 上提交 Bug 报告或 Pull Request。
+
 ## 许可证
 
-MIT
+[MIT](LICENSE) © Rhys Wang

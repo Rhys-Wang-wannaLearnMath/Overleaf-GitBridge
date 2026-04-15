@@ -1,8 +1,34 @@
 {
   "name": "overleaf-gitbridge",
   "displayName": "Overleaf GitBridge",
-  "description": "Overleaf Git sync + remote PDF preview for VS Code",
+  "description": "Two-way Git sync and remote PDF preview for Overleaf projects — edit LaTeX in VS Code, auto-sync with collaborators, and compile PDFs without leaving the editor.",
   "version": "0.1.0",
+  "publisher": "TODO-PUBLISHER",
+  "author": {
+    "name": "Rhys Wang",
+    "url": "https://github.com/Rhys-Wang-wannaLearnMath"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge#readme",
+  "bugs": {
+    "url": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/issues"
+  },
+  "keywords": [
+    "overleaf",
+    "latex",
+    "git",
+    "sync",
+    "pdf",
+    "preview",
+    "collaboration",
+    "tex"
+  ],
+  "galleryBanner": {
+    "color": "#4A8B5C",
+    "theme": "dark"
+  },
+  "markdown": "github",
+  "qna": "marketplace",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -12,11 +38,11 @@
     "url": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge"
   },
   "categories": [
+    "SCM Providers",
     "Other"
   ],
   "activationEvents": [
-    "workspaceContains:.git/config",
-    "onView:overleaf-gitbridge.sidebar"
+    "workspaceContains:.git/config"
   ],
   "main": "./out/extension.js",
   "contributes": {

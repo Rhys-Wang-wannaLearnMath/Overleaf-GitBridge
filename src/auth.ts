@@ -5,7 +5,7 @@ const KEY_COOKIE = 'overleaf-gitbridge.cookie';
 const KEY_SERVER_URL = 'overleaf-gitbridge.serverUrl';
 
 export class AuthStore {
-    constructor(private secrets: vscode.SecretStorage) {}
+    constructor(private secrets: vscode.SecretStorage) { }
 
     async saveToken(token: string): Promise<void> {
         await this.secrets.store(KEY_GIT_TOKEN, token);

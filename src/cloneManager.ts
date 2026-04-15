@@ -7,7 +7,7 @@ export class CloneManager {
     constructor(
         private authStore: AuthStore,
         private outputChannel: vscode.OutputChannel,
-    ) {}
+    ) { }
 
     async cloneProject(): Promise<string | undefined> {
         // 1. Ensure we have credentials

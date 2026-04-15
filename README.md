@@ -12,6 +12,18 @@
   <a href="README.zh-CN.md">中文文档</a>
 </p>
 
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=TODO-PUBLISHER.overleaf-gitbridge">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/TODO-PUBLISHER.overleaf-gitbridge?label=VS%20Code%20Marketplace" alt="VS Code Marketplace">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=TODO-PUBLISHER.overleaf-gitbridge">
+    <img src="https://img.shields.io/visual-studio-marketplace/i/TODO-PUBLISHER.overleaf-gitbridge" alt="Installs">
+  </a>
+  <a href="https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge" alt="License">
+  </a>
+</p>
+
 ---
 
 ## Features
@@ -23,6 +35,12 @@
 - **Secure credential storage** — Git token and cookie stored in VS Code SecretStorage; configure once, use persistently
 - **Sidebar control panel** — Start/stop sync, trigger PDF compile, resolve conflicts — all from a dedicated sidebar
 - **LaTeX formatter** — Built-in Prettier + unified-latex formatter with configurable line width
+
+## Requirements
+
+- **VS Code** ≥ 1.80.0
+- **Git** installed and available in `PATH`
+- An **Overleaf** account (free or paid) with Git Integration enabled
 
 ## Quick Start
 
@@ -95,34 +113,39 @@ Additional diff behavior:
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Clone Project` | Clone an Overleaf project to local |
-| `Configure Git Token` | Set Overleaf Git authentication token |
-| `Configure Cookie` | Set Overleaf session cookie |
-| `Clear All Credentials` | Remove all stored credentials |
-| `Start Git Sync` | Start automatic two-way sync |
-| `Stop Git Sync` | Stop syncing |
-| `Start PDF Preview` | Start PDF compilation & preview |
-| `Stop PDF Preview` | Stop PDF preview |
-| `Refresh PDF` | Manually trigger compilation + preview |
-| `Show Output Log` | Open the extension output log |
+All commands are prefixed with `Overleaf GitBridge:`.
+
+| Command | Shortcut | Description |
+|---------|----------|-------------|
+| `Clone Project` | — | Clone an Overleaf project to local |
+| `Configure Git Token` | — | Set Overleaf Git authentication token |
+| `Configure Cookie` | — | Set Overleaf session cookie |
+| `Clear All Credentials` | — | Remove all stored credentials |
+| `Start Git Sync` | `Cmd+Alt+S` | Start automatic two-way sync |
+| `Stop Git Sync` | — | Stop syncing |
+| `Start PDF Preview` | — | Start PDF compilation & preview |
+| `Stop PDF Preview` | — | Stop PDF preview |
+| `Refresh PDF` | `Cmd+Alt+R` | Manually trigger compilation + preview |
+| `View Commit Diff` | `Cmd+Alt+D` | Browse commit history and open side-by-side diffs |
+| `Show Output Log` | — | Open the extension output log |
+| `Open Settings` | — | Jump to extension settings |
 
 ## Settings
 
+All settings are prefixed with `overleaf-gitbridge.`.
+
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `serverUrl` | `https://www.overleaf.com` | Overleaf server URL |
-| `quietSeconds` | `30` | Seconds to wait after last edit before auto-commit |
-| `pollSeconds` | `2` | Git status polling interval (seconds) |
-| `pdfPollSeconds` | `0` | PDF polling interval; `0` = only after push |
+| `serverUrl` | `https://www.overleaf.com` | Overleaf server URL (change for self-hosted instances) |
+| `pollSeconds` | `1` | Git status polling interval in seconds |
+| `pdfPollSeconds` | `0` | PDF periodic polling interval in seconds; `0` = only compile after push |
+| `autoStart` | `off` | Behavior on activation: `off`, `ask`, or `sync` |
 | `conflictStrategy` | `smart-merge` | Conflict handling: `smart-merge`, `always-ask`, `local-first`, `remote-first` |
+| `diffViewMode` | `sidebar` | Where to browse commit diffs: `sidebar` or `quickpick` |
 | `ignorePatterns` | `[".*"]` | Glob patterns to exclude from sync (`.output*` is always excluded) |
 | `formatter.enabled` | `true` | Enable built-in LaTeX formatter |
 | `formatter.lineBreak` | `true` | Auto-wrap lines at print width |
-| `formatter.printWidth` | `80` | Line width for formatting |
-
-All settings are prefixed with `overleaf-gitbridge.`.
+| `formatter.printWidth` | `80` | Line width for LaTeX formatting |
 
 ## How to Obtain Credentials
 
@@ -165,6 +188,10 @@ or from the terminal:
 code --install-extension overleaf-gitbridge-*.vsix
 ```
 
+## Contributing
+
+Bug reports and pull requests are welcome on [GitHub](https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/issues).
+
 ## License
 
-MIT
+[MIT](LICENSE) © Rhys Wang

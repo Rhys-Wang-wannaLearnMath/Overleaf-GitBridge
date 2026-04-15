@@ -1,7 +1,7 @@
-# Overleaf GitBridge
+# Overleaf GitLive
 
 <p align="center">
-  <img src="resources/icon.png" width="128" height="128" alt="Overleaf GitBridge">
+  <img src="resources/icon.png" width="128" height="128" alt="Overleaf GitLive">
 </p>
 
 <p align="center">
@@ -10,18 +10,6 @@
 
 <p align="center">
   <a href="README.md">English</a>
-</p>
-
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitbridge">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/RhysWang0405-vsc-studio.overleaf-gitbridge?label=VS%20Code%20Marketplace" alt="VS Code Marketplace">
-  </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitbridge">
-    <img src="https://img.shields.io/visual-studio-marketplace/i/RhysWang0405-vsc-studio.overleaf-gitbridge" alt="安装量">
-  </a>
-  <a href="https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge" alt="许可证">
-  </a>
 </p>
 
 ---
@@ -36,24 +24,18 @@
 - **侧边栏控制面板** — 启动/停止同步、触发 PDF 编译、解决冲突，全部在专用侧边栏中完成
 - **LaTeX 格式化** — 内置 Prettier + unified-latex 格式化器，支持自定义行宽
 
-## 环境要求
-
-- **VS Code** ≥ 1.80.0
-- 系统已安装 **Git** 并加入 `PATH`
-- 一个 **Overleaf** 账户（免费或付费均可），已开启 Git Integration
-
 ## 快速开始
 
 ### 1. 配置凭证
 
 按 `Cmd+Shift+P`（macOS）或 `Ctrl+Shift+P`（Windows/Linux）打开命令面板，执行：
 
-- **`Overleaf GitBridge: Configure Git Token`** — 输入 Overleaf Git token（从 Account Settings → Git Integration 获取）
-- **`Overleaf GitBridge: Configure Cookie`** — 输入 `overleaf_session2` cookie 值
+- **`Overleaf GitLive: Configure Git Token`** — 输入 Overleaf Git token（从 Account Settings → Git Integration 获取）
+- **`Overleaf GitLive: Configure Cookie`** — 输入 `overleaf_session2` cookie 值
 
 ### 2. Clone 项目
 
-执行 **`Overleaf GitBridge: Clone Project`**：
+执行 **`Overleaf GitLive: Clone Project`**：
 
 1. 插件使用已保存的 Cookie 获取项目列表
 2. 选择项目 → 选择本地目标文件夹
@@ -61,7 +43,7 @@
 
 ### 3. 启动同步
 
-在 Overleaf 项目目录中执行 **`Overleaf GitBridge: Start Git Sync`**（快捷键 `Cmd+Alt+S`）：
+在 Overleaf 项目目录中执行 **`Overleaf GitLive: Start Git Sync`**（快捷键 `Cmd+Alt+S`）：
 
 - 本地修改在静默期（默认 30 秒）后自动 commit & push
 - 协作者的远端提交自动 pull 到本地
@@ -69,10 +51,10 @@
 
 ### 4. 启动 PDF 预览
 
-执行 **`Overleaf GitBridge: Start PDF Preview`**：
+执行 **`Overleaf GitLive: Start PDF Preview`**：
 
 - 每次 push 后自动触发编译并显示 PDF
-- 手动刷新：**`Overleaf GitBridge: Refresh PDF`**（快捷键 `Cmd+Alt+R`）
+- 手动刷新：**`Overleaf GitLive: Refresh PDF`**（快捷键 `Cmd+Alt+R`）
 
 ## 冲突解决
 
@@ -113,39 +95,36 @@ Diff 行为补充：
 
 ## 所有命令
 
-所有命令均以 `Overleaf GitBridge:` 为前缀。
+| 命令 | 说明 |
+|------|------|
+| `Clone Project` | 从 Overleaf 项目列表 clone 到本地 |
+| `Configure Git Token` | 配置 Overleaf Git 认证 token |
+| `Configure Cookie` | 配置 Overleaf session cookie |
+| `Clear All Credentials` | 清除所有存储的凭证 |
+| `Start Git Sync` | 启动双向自动同步 |
+| `Stop Git Sync` | 停止同步 |
+| `Start PDF Preview` | 启动 PDF 编译预览 |
+| `Stop PDF Preview` | 停止 PDF 预览 |
+| `Refresh PDF` | 手动触发一次编译 + 预览 |
+| `Show Output Log` | 打开插件输出日志 |
 
-| 命令 | 快捷键 | 说明 |
-|------|--------|------|
-| `Clone Project` | — | 从 Overleaf 项目列表 clone 到本地 |
-| `Configure Git Token` | — | 配置 Overleaf Git 认证 token |
-| `Configure Cookie` | — | 配置 Overleaf session cookie |
-| `Clear All Credentials` | — | 清除所有存储的凭证 |
-| `Start Git Sync` | `Cmd+Alt+S` | 启动双向自动同步 |
-| `Stop Git Sync` | — | 停止同步 |
-| `Start PDF Preview` | — | 启动 PDF 编译预览 |
-| `Stop PDF Preview` | — | 停止 PDF 预览 |
-| `Refresh PDF` | `Cmd+Alt+R` | 手动触发一次编译 + 预览 |
-| `View Commit Diff` | `Cmd+Alt+D` | 浏览提交历史并打开并排 diff |
-| `Show Output Log` | — | 打开插件输出日志 |
-| `Open Settings` | — | 跳转到插件设置页 |
+所有命令均以 `Overleaf GitLive:` 为前缀。
 
 ## 配置项
 
-所有设置前缀为 `overleaf-gitbridge.`。
-
 | 设置 | 默认值 | 说明 |
 |------|--------|------|
-| `serverUrl` | `https://www.overleaf.com` | Overleaf 服务器地址（自部署实例请修改） |
-| `pollSeconds` | `1` | Git 状态轮询间隔（秒） |
-| `pdfPollSeconds` | `0` | PDF 定时轮询间隔；`0` = 仅 push 后触发编译 |
-| `autoStart` | `off` | 激活时行为：`off`、`ask`、`sync` |
+| `serverUrl` | `https://www.overleaf.com` | Overleaf 服务器地址 |
+| `quietSeconds` | `30` | 最后一次编辑后等待的静默期（秒） |
+| `pollSeconds` | `2` | Git 状态轮询间隔（秒） |
+| `pdfPollSeconds` | `0` | PDF 定时轮询间隔；`0` = 仅 push 后触发 |
 | `conflictStrategy` | `smart-merge` | 冲突策略：`smart-merge`、`always-ask`、`local-first`、`remote-first` |
-| `diffViewMode` | `sidebar` | Diff 浏览方式：`sidebar`（侧边栏）或 `quickpick`（弹窗） |
 | `ignorePatterns` | `[".*"]` | 同步时排除的 glob 模式（`.output*` 始终排除） |
 | `formatter.enabled` | `true` | 启用内置 LaTeX 格式化 |
 | `formatter.lineBreak` | `true` | 自动按行宽换行 |
-| `formatter.printWidth` | `80` | LaTeX 格式化行宽 |
+| `formatter.printWidth` | `80` | 格式化行宽 |
+
+所有设置前缀为 `overleaf-gitlive.`。
 
 ## 冲突策略详解
 
@@ -193,10 +172,6 @@ src/
   gitUtils.ts         # Git 命令封装
 ```
 
-## 参与贡献
-
-欢迎在 [GitHub](https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/issues) 上提交 Bug 报告或 Pull Request。
-
 ## 许可证
 
-[MIT](LICENSE) © Rhys Wang
+MIT

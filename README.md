@@ -1,7 +1,7 @@
-# Overleaf GitBridge
+# Overleaf GitLive
 
 <p align="center">
-  <img src="resources/icon.png" width="128" height="128" alt="Overleaf GitBridge">
+  <img src="resources/icon.png" width="128" height="128" alt="Overleaf GitLive">
 </p>
 
 <p align="center">
@@ -9,19 +9,19 @@
 </p>
 
 <p align="center">
-  <a href="README.zh-CN.md">中文文档</a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitlive">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/RhysWang0405-vsc-studio.overleaf-gitlive?label=VS%20Code%20Marketplace" alt="VS Marketplace Version">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitlive">
+    <img src="https://img.shields.io/visual-studio-marketplace/i/RhysWang0405-vsc-studio.overleaf-gitlive?label=Installs" alt="Installs">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/Rhys-Wang-wannaLearnMath/Overleaf-GitLive" alt="License">
+  </a>
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitbridge">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/RhysWang0405-vsc-studio.overleaf-gitbridge?label=VS%20Code%20Marketplace" alt="VS Code Marketplace">
-  </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=RhysWang0405-vsc-studio.overleaf-gitbridge">
-    <img src="https://img.shields.io/visual-studio-marketplace/i/RhysWang0405-vsc-studio.overleaf-gitbridge" alt="Installs">
-  </a>
-  <a href="https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge" alt="License">
-  </a>
+  <a href="README.zh-CN.md">中文文档</a>
 </p>
 
 ---
@@ -36,24 +36,18 @@
 - **Sidebar control panel** — Start/stop sync, trigger PDF compile, resolve conflicts — all from a dedicated sidebar
 - **LaTeX formatter** — Built-in Prettier + unified-latex formatter with configurable line width
 
-## Requirements
-
-- **VS Code** ≥ 1.80.0
-- **Git** installed and available in `PATH`
-- An **Overleaf** account (free or paid) with Git Integration enabled
-
 ## Quick Start
 
 ### 1. Configure credentials
 
 Open the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run:
 
-- **`Overleaf GitBridge: Configure Git Token`** — Enter your Overleaf Git token (from Account Settings → Git Integration)
-- **`Overleaf GitBridge: Configure Cookie`** — Enter your `overleaf_session2` cookie value
+- **`Overleaf GitLive: Configure Git Token`** — Enter your Overleaf Git token (from Account Settings → Git Integration)
+- **`Overleaf GitLive: Configure Cookie`** — Enter your `overleaf_session2` cookie value
 
 ### 2. Clone a project
 
-Run **`Overleaf GitBridge: Clone Project`**:
+Run **`Overleaf GitLive: Clone Project`**:
 
 1. The extension fetches your project list using the saved cookie
 2. Pick a project → choose a local folder
@@ -61,7 +55,7 @@ Run **`Overleaf GitBridge: Clone Project`**:
 
 ### 3. Start syncing
 
-Inside an Overleaf project folder, run **`Overleaf GitBridge: Start Git Sync`** (`Cmd+Alt+S`):
+Inside an Overleaf project folder, run **`Overleaf GitLive: Start Git Sync`** (`Cmd+Alt+S`):
 
 - Local edits are auto-committed & pushed after the quiet period (default 30 s)
 - Remote commits from collaborators are auto-pulled
@@ -69,10 +63,10 @@ Inside an Overleaf project folder, run **`Overleaf GitBridge: Start Git Sync`** 
 
 ### 4. Start PDF preview
 
-Run **`Overleaf GitBridge: Start PDF Preview`**:
+Run **`Overleaf GitLive: Start PDF Preview`**:
 
 - PDF compiles automatically after each push
-- Manual refresh: **`Overleaf GitBridge: Refresh PDF`** (`Cmd+Alt+R`)
+- Manual refresh: **`Overleaf GitLive: Refresh PDF`** (`Cmd+Alt+R`)
 
 ## Conflict Resolution
 
@@ -113,39 +107,34 @@ Additional diff behavior:
 
 ## Commands
 
-All commands are prefixed with `Overleaf GitBridge:`.
-
-| Command | Shortcut | Description |
-|---------|----------|-------------|
-| `Clone Project` | — | Clone an Overleaf project to local |
-| `Configure Git Token` | — | Set Overleaf Git authentication token |
-| `Configure Cookie` | — | Set Overleaf session cookie |
-| `Clear All Credentials` | — | Remove all stored credentials |
-| `Start Git Sync` | `Cmd+Alt+S` | Start automatic two-way sync |
-| `Stop Git Sync` | — | Stop syncing |
-| `Start PDF Preview` | — | Start PDF compilation & preview |
-| `Stop PDF Preview` | — | Stop PDF preview |
-| `Refresh PDF` | `Cmd+Alt+R` | Manually trigger compilation + preview |
-| `View Commit Diff` | `Cmd+Alt+D` | Browse commit history and open side-by-side diffs |
-| `Show Output Log` | — | Open the extension output log |
-| `Open Settings` | — | Jump to extension settings |
+| Command | Description |
+|---------|-------------|
+| `Clone Project` | Clone an Overleaf project to local |
+| `Configure Git Token` | Set Overleaf Git authentication token |
+| `Configure Cookie` | Set Overleaf session cookie |
+| `Clear All Credentials` | Remove all stored credentials |
+| `Start Git Sync` | Start automatic two-way sync |
+| `Stop Git Sync` | Stop syncing |
+| `Start PDF Preview` | Start PDF compilation & preview |
+| `Stop PDF Preview` | Stop PDF preview |
+| `Refresh PDF` | Manually trigger compilation + preview |
+| `Show Output Log` | Open the extension output log |
 
 ## Settings
 
-All settings are prefixed with `overleaf-gitbridge.`.
-
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `serverUrl` | `https://www.overleaf.com` | Overleaf server URL (change for self-hosted instances) |
-| `pollSeconds` | `1` | Git status polling interval in seconds |
-| `pdfPollSeconds` | `0` | PDF periodic polling interval in seconds; `0` = only compile after push |
-| `autoStart` | `off` | Behavior on activation: `off`, `ask`, or `sync` |
+| `serverUrl` | `https://www.overleaf.com` | Overleaf server URL |
+| `quietSeconds` | `30` | Seconds to wait after last edit before auto-commit |
+| `pollSeconds` | `2` | Git status polling interval (seconds) |
+| `pdfPollSeconds` | `0` | PDF polling interval; `0` = only after push |
 | `conflictStrategy` | `smart-merge` | Conflict handling: `smart-merge`, `always-ask`, `local-first`, `remote-first` |
-| `diffViewMode` | `sidebar` | Where to browse commit diffs: `sidebar` or `quickpick` |
 | `ignorePatterns` | `[".*"]` | Glob patterns to exclude from sync (`.output*` is always excluded) |
 | `formatter.enabled` | `true` | Enable built-in LaTeX formatter |
 | `formatter.lineBreak` | `true` | Auto-wrap lines at print width |
-| `formatter.printWidth` | `80` | Line width for LaTeX formatting |
+| `formatter.printWidth` | `80` | Line width for formatting |
+
+All settings are prefixed with `overleaf-gitlive.`.
 
 ## How to Obtain Credentials
 
@@ -185,13 +174,9 @@ Extensions panel → ··· → Install from VSIX…
 or from the terminal:
 
 ```bash
-code --install-extension overleaf-gitbridge-*.vsix
+code --install-extension overleaf-gitlive-*.vsix
 ```
-
-## Contributing
-
-Bug reports and pull requests are welcome on [GitHub](https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/issues).
 
 ## License
 
-[MIT](LICENSE) © Rhys Wang
+MIT

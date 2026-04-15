@@ -17,7 +17,7 @@ export async function openConflictDiffs(
 ): Promise<void> {
     if (conflictingFiles.length === 0) { return; }
 
-    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitbridge-diff');
+    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitlive-diff');
     if (!fs.existsSync(tmpDir)) {
         fs.mkdirSync(tmpDir, { recursive: true });
     }
@@ -45,7 +45,7 @@ export async function openConflictDiffs(
 
     if (conflictingFiles.length > 0) {
         vscode.window.showInformationMessage(
-            `Overleaf GitBridge: Opened ${conflictingFiles.length} diff editor(s) for conflicting files.`,
+            `Overleaf GitLive: Opened ${conflictingFiles.length} diff editor(s) for conflicting files.`,
         );
     }
 }
@@ -83,14 +83,14 @@ export async function openInteractiveMerge(
         }
         if (opened > 0) {
             vscode.window.showInformationMessage(
-                `Overleaf GitBridge: Opened ${opened} file(s). Use inline buttons to accept changes, then save.`,
+                `Overleaf GitLive: Opened ${opened} file(s). Use inline buttons to accept changes, then save.`,
             );
         }
         return;
     }
 
     // No active git merge — use git merge-file to inject conflict markers
-    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitbridge-diff');
+    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitlive-diff');
     if (!fs.existsSync(tmpDir)) {
         fs.mkdirSync(tmpDir, { recursive: true });
     }
@@ -179,7 +179,7 @@ export async function openInteractiveMerge(
 
     if (mergedCount > 0) {
         vscode.window.showInformationMessage(
-            `Overleaf GitBridge: Opened ${mergedCount} file(s) with conflict markers. Use the inline buttons to accept changes.`,
+            `Overleaf GitLive: Opened ${mergedCount} file(s) with conflict markers. Use the inline buttons to accept changes.`,
         );
     }
 }
@@ -188,7 +188,7 @@ export async function openInteractiveMerge(
  * Clean up temporary diff files.
  */
 export function cleanupDiffTmpFiles(): void {
-    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitbridge-diff');
+    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitlive-diff');
     try {
         if (fs.existsSync(tmpDir)) {
             const files = fs.readdirSync(tmpDir);

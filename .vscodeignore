@@ -1,11 +1,17 @@
-.vscode/**
-.vscode-test/**
+# Source & config (compiled JS is in out/)
 src/**
-node_modules/**
+tsconfig.json
+.vscode/**
+
+# Development files
 .git/**
 .DS_Store
+
+# Built VSIX artifacts
 *.vsix
-tsconfig.json
-package-lock.json
-**/*.ts
-!out/**
+
+# Documentation variants (English README is the marketplace page)
+README.zh-CN.md
+
+# Misc
+.gitignore

@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
-const KEY_GIT_TOKEN = 'overleaf-gitbridge.gitToken';
-const KEY_COOKIE = 'overleaf-gitbridge.cookie';
-const KEY_SERVER_URL = 'overleaf-gitbridge.serverUrl';
+const KEY_GIT_TOKEN = 'overleaf-gitlive.gitToken';
+const KEY_COOKIE = 'overleaf-gitlive.cookie';
+const KEY_SERVER_URL = 'overleaf-gitlive.serverUrl';
 
 export class AuthStore {
     constructor(private secrets: vscode.SecretStorage) { }

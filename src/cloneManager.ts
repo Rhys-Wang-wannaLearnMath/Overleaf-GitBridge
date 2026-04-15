@@ -28,7 +28,7 @@ export class CloneManager {
                 ignoreFocusOut: true,
             });
             if (!token) {
-                vscode.window.showWarningMessage('Overleaf GitBridge: Git token is required for cloning.');
+                vscode.window.showWarningMessage('Overleaf GitLive: Git token is required for cloning.');
                 return undefined;
             }
             await this.authStore.saveToken(token);
@@ -51,7 +51,7 @@ export class CloneManager {
 
         try {
             await vscode.window.withProgress(
-                { location: vscode.ProgressLocation.Notification, title: `Overleaf GitBridge: Cloning "${project.name}"...`, cancellable: false },
+                { location: vscode.ProgressLocation.Notification, title: `Overleaf GitLive: Cloning "${project.name}"...`, cancellable: false },
                 async () => {
                     await execGit(targetParent[0].fsPath, ['clone', cloneUrl, targetDir]);
                 },
@@ -59,7 +59,7 @@ export class CloneManager {
             this.log(`Clone successful: ${targetDir}`);
         } catch (err: any) {
             this.log(`Clone failed: ${err.message}`);
-            vscode.window.showErrorMessage(`Overleaf GitBridge: Clone failed — ${err.message}`);
+            vscode.window.showErrorMessage(`Overleaf GitLive: Clone failed — ${err.message}`);
             return undefined;
         }
 
@@ -101,12 +101,12 @@ export class CloneManager {
 
         // Validate by logging in
         const result = await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitBridge: Logging in...' },
+            { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitLive: Logging in...' },
             () => loginWithCookies(serverUrl!, cookie!),
         );
 
         if (!result.success || !result.creds) {
-            vscode.window.showErrorMessage(`Overleaf GitBridge: ${result.error || 'Login failed. Check your cookies.'}`);
+            vscode.window.showErrorMessage(`Overleaf GitLive: ${result.error || 'Login failed. Check your cookies.'}`);
             // Clear stored cookie since it's invalid
             await this.authStore.saveCookie('');
             return undefined;
@@ -119,12 +119,12 @@ export class CloneManager {
 
     private async pickProject(creds: Credentials): Promise<{ id: string; name: string } | undefined> {
         const result = await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitBridge: Fetching projects...' },
+            { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitLive: Fetching projects...' },
             () => fetchProjects(creds),
         );
 
         if (!result.success || !result.projects?.length) {
-            vscode.window.showErrorMessage(`Overleaf GitBridge: ${result.error || 'No projects found.'}`);
+            vscode.window.showErrorMessage(`Overleaf GitLive: ${result.error || 'No projects found.'}`);
             return undefined;
         }
 

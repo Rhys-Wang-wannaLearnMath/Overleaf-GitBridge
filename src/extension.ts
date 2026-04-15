@@ -35,7 +35,7 @@ async function promptInput(prompt: string, placeHolder: string, password = false
 }
 
 function getConfig<T>(key: string, fallback: T): T {
-    return vscode.workspace.getConfiguration('overleaf-gitbridge').get<T>(key, fallback);
+    return vscode.workspace.getConfiguration('overleaf-gitlive').get<T>(key, fallback);
 }
 
 function updateSyncStatusBar(status: SyncStatus, message: string) {
@@ -127,29 +127,29 @@ async function collectCredentials(): Promise<Credentials | undefined> {
     }
 
     const result = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitBridge: Logging in...' },
+        { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitLive: Logging in...' },
         () => loginWithCookies(serverUrl!, cookie!),
     );
 
     if (!result.success || !result.creds) {
-        vscode.window.showErrorMessage(`Overleaf GitBridge: ${result.error || 'Login failed. Check your cookies.'}`);
+        vscode.window.showErrorMessage(`Overleaf GitLive: ${result.error || 'Login failed. Check your cookies.'}`);
         await authStore.saveCookie('');
         return undefined;
     }
 
     await authStore.saveCookie(cookie);
-    vscode.window.showInformationMessage('Overleaf GitBridge: Login successful!');
+    vscode.window.showInformationMessage('Overleaf GitLive: Login successful!');
     return result.creds;
 }
 
 async function pickProject(creds: Credentials): Promise<{ id: string; name: string } | undefined> {
     const result = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitBridge: Fetching projects...' },
+        { location: vscode.ProgressLocation.Notification, title: 'Overleaf GitLive: Fetching projects...' },
         () => fetchProjects(creds),
     );
 
     if (!result.success || !result.projects?.length) {
-        vscode.window.showErrorMessage(`Overleaf GitBridge: ${result.error || 'No projects found.'}`);
+        vscode.window.showErrorMessage(`Overleaf GitLive: ${result.error || 'No projects found.'}`);
         return undefined;
     }
 
@@ -174,7 +174,7 @@ async function pickProject(creds: Credentials): Promise<{ id: string; name: stri
 // ── Activate ──
 
 export function activate(context: vscode.ExtensionContext) {
-    outputChannel = vscode.window.createOutputChannel('Overleaf GitBridge');
+    outputChannel = vscode.window.createOutputChannel('Overleaf GitLive');
     authStore = new AuthStore(context.secrets);
 
     // Conflict Marker Scanner
@@ -202,11 +202,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Status bars
     syncStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -9);
-    syncStatusBar.command = 'overleaf-gitbridge.stopSync';
+    syncStatusBar.command = 'overleaf-gitlive.stopSync';
     context.subscriptions.push(syncStatusBar);
 
     pdfStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -10);
-    pdfStatusBar.command = 'overleaf-gitbridge.stopPdfPreview';
+    pdfStatusBar.command = 'overleaf-gitlive.stopPdfPreview';
     context.subscriptions.push(pdfStatusBar);
 
     // Initialize sidebar credential state
@@ -214,7 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Clone Project ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.cloneProject', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.cloneProject', async () => {
             const cloneManager = new CloneManager(authStore, outputChannel);
             await cloneManager.cloneProject();
         }),
@@ -222,11 +222,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Configure Token ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.configureToken', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.configureToken', async () => {
             const token = await promptInput('Enter Overleaf Git token', 'From Account Settings → Git Integration', true);
             if (token) {
                 await authStore.saveToken(token);
-                vscode.window.showInformationMessage('Overleaf GitBridge: Git token saved.');
+                vscode.window.showInformationMessage('Overleaf GitLive: Git token saved.');
                 refreshSidebarCredentials();
             }
         }),
@@ -234,14 +234,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Configure Cookie ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.configureCookie', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.configureCookie', async () => {
             let cookie = await promptInput('Enter Overleaf Cookie', 'Paste overleaf_session2 value', true);
             if (cookie) {
                 if (!cookie.includes('overleaf_session2=')) {
                     cookie = `overleaf_session2=${cookie}`;
                 }
                 await authStore.saveCookie(cookie);
-                vscode.window.showInformationMessage('Overleaf GitBridge: Cookie saved.');
+                vscode.window.showInformationMessage('Overleaf GitLive: Cookie saved.');
                 refreshSidebarCredentials();
             }
         }),
@@ -249,36 +249,36 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Clear Credentials ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.clearCredentials', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.clearCredentials', async () => {
             await authStore.clearAll();
-            vscode.window.showInformationMessage('Overleaf GitBridge: All credentials cleared.');
+            vscode.window.showInformationMessage('Overleaf GitLive: All credentials cleared.');
             refreshSidebarCredentials();
         }),
     );
 
     // ── Start Sync ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.startSync', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.startSync', async () => {
             if (syncEngine?.isRunning) {
-                vscode.window.showInformationMessage('Overleaf GitBridge: Sync is already running.');
+                vscode.window.showInformationMessage('Overleaf GitLive: Sync is already running.');
                 return;
             }
 
             const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
             if (!ws) {
-                vscode.window.showErrorMessage('Overleaf GitBridge: No workspace folder open.');
+                vscode.window.showErrorMessage('Overleaf GitLive: No workspace folder open.');
                 return;
             }
 
             const isOverleaf = await detectOverleafProject();
             if (!isOverleaf) {
                 const action = await vscode.window.showWarningMessage(
-                    'Overleaf GitBridge: This does not appear to be an Overleaf Git project.',
+                    'Overleaf GitLive: This does not appear to be an Overleaf Git project.',
                     'Clone a Project',
                     'Start Anyway',
                 );
                 if (action === 'Clone a Project') {
-                    await vscode.commands.executeCommand('overleaf-gitbridge.cloneProject');
+                    await vscode.commands.executeCommand('overleaf-gitlive.cloneProject');
                     return;
                 }
                 if (action !== 'Start Anyway') { return; }
@@ -314,7 +314,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 },
                 onError: (message) => {
-                    vscode.window.showErrorMessage(`Overleaf GitBridge: ${message}`);
+                    vscode.window.showErrorMessage(`Overleaf GitLive: ${message}`);
                     updateSyncStatusBar('error', message);
                     sidebar.setSyncStatus('error', message);
                 },
@@ -329,7 +329,7 @@ export function activate(context: vscode.ExtensionContext) {
                             conflictScanner.startWatching(ws, mergedFiles);
                             outputChannel.appendLine(`[Conflict] Found ${count} conflict marker(s). Resolve them to continue sync.`);
                             vscode.window.showWarningMessage(
-                                `Overleaf GitBridge: ${count} conflict marker(s) found. Resolve them and save to auto-resume sync.`,
+                                `Overleaf GitLive: ${count} conflict marker(s) found. Resolve them and save to auto-resume sync.`,
                             );
                         }
                     });
@@ -349,7 +349,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Stop Sync ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.stopSync', () => {
+        vscode.commands.registerCommand('overleaf-gitlive.stopSync', () => {
             syncEngine?.stop();
             syncEngine = undefined;
             updateSyncStatusBar('idle', 'Sync stopped');
@@ -361,23 +361,23 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Conflict Resolution Commands (triggered from sidebar) ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.resolveConflict.pull', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.resolveConflict.pull', async () => {
             if (!syncEngine?.inConflict) {
-                vscode.window.showInformationMessage('Overleaf GitBridge: No conflict to resolve.');
+                vscode.window.showInformationMessage('Overleaf GitLive: No conflict to resolve.');
                 return;
             }
             await syncEngine.resolveWithPull();
         }),
-        vscode.commands.registerCommand('overleaf-gitbridge.resolveConflict.forcePush', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.resolveConflict.forcePush', async () => {
             if (!syncEngine?.inConflict) {
-                vscode.window.showInformationMessage('Overleaf GitBridge: No conflict to resolve.');
+                vscode.window.showInformationMessage('Overleaf GitLive: No conflict to resolve.');
                 return;
             }
             await syncEngine.resolveWithForcePush();
         }),
-        vscode.commands.registerCommand('overleaf-gitbridge.resolveConflict.diff', () => {
+        vscode.commands.registerCommand('overleaf-gitlive.resolveConflict.diff', () => {
             if (!syncEngine?.inConflict) {
-                vscode.window.showInformationMessage('Overleaf GitBridge: No conflict to resolve.');
+                vscode.window.showInformationMessage('Overleaf GitLive: No conflict to resolve.');
                 return;
             }
             const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -387,14 +387,14 @@ export function activate(context: vscode.ExtensionContext) {
                 syncEngine.notifyMergeActionTaken();
             }
         }),
-        vscode.commands.registerCommand('overleaf-gitbridge.resolveConflict.markResolved', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.resolveConflict.markResolved', async () => {
             if (!syncEngine?.inConflict) {
-                vscode.window.showInformationMessage('Overleaf GitBridge: No conflict to resolve.');
+                vscode.window.showInformationMessage('Overleaf GitLive: No conflict to resolve.');
                 return;
             }
             await syncEngine.markResolved();
         }),
-        vscode.commands.registerCommand('overleaf-gitbridge.resolveConflict.terminal', () => {
+        vscode.commands.registerCommand('overleaf-gitlive.resolveConflict.terminal', () => {
             if (!syncEngine) { return; }
             syncEngine.openTerminal();
         }),
@@ -402,15 +402,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Start PDF Preview ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.startPdfPreview', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.startPdfPreview', async () => {
             if (poller?.isRunning) {
-                vscode.window.showInformationMessage('Overleaf GitBridge: PDF preview is already running.');
+                vscode.window.showInformationMessage('Overleaf GitLive: PDF preview is already running.');
                 return;
             }
 
             const creds = await collectCredentials();
             if (!creds) {
-                vscode.window.showWarningMessage('Overleaf GitBridge: Cancelled — credentials incomplete.');
+                vscode.window.showWarningMessage('Overleaf GitLive: Cancelled — credentials incomplete.');
                 return;
             }
 
@@ -459,7 +459,7 @@ export function activate(context: vscode.ExtensionContext) {
                     sidebar.setPdfState('running', 'PDF updated');
                 },
                 (errMsg) => {
-                    vscode.window.showErrorMessage(`Overleaf GitBridge: ${errMsg}`);
+                    vscode.window.showErrorMessage(`Overleaf GitLive: ${errMsg}`);
                     updatePdfStatusBar('Error');
                     sidebar.setPdfState('error', errMsg);
                 },
@@ -475,7 +475,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Stop PDF Preview ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.stopPdfPreview', () => {
+        vscode.commands.registerCommand('overleaf-gitlive.stopPdfPreview', () => {
             poller?.stop();
             poller = undefined;
             updatePdfStatusBar('Stopped');
@@ -486,34 +486,34 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Refresh PDF (manual one-shot) ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.refreshPdf', () => {
+        vscode.commands.registerCommand('overleaf-gitlive.refreshPdf', () => {
             if (poller?.isRunning) {
                 poller.triggerOnce();
             } else {
-                vscode.window.showWarningMessage('Overleaf GitBridge: Start PDF preview first.');
+                vscode.window.showWarningMessage('Overleaf GitLive: Start PDF preview first.');
             }
         }),
     );
 
     // ── View Commit Diff (QuickPick or triggered from sidebar) ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.viewCommitDiff', async () => {
+        vscode.commands.registerCommand('overleaf-gitlive.viewCommitDiff', async () => {
             const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
             if (!ws) {
-                vscode.window.showErrorMessage('Overleaf GitBridge: No workspace folder open.');
+                vscode.window.showErrorMessage('Overleaf GitLive: No workspace folder open.');
                 return;
             }
 
             const mode = getConfig<string>('diffViewMode', 'sidebar');
             if (mode === 'sidebar') {
                 // Just reveal the sidebar — user interacts with the commit list there
-                await vscode.commands.executeCommand('overleaf-gitbridge.sidebar.focus');
+                await vscode.commands.executeCommand('overleaf-gitlive.sidebar.focus');
                 return;
             }
 
             // QuickPick mode
             if (commitHistory.length === 0) {
-                vscode.window.showInformationMessage('Overleaf GitBridge: No commits yet. Start sync first.');
+                vscode.window.showInformationMessage('Overleaf GitLive: No commits yet. Start sync first.');
                 return;
             }
 
@@ -547,15 +547,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Show Output ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.showOutput', () => {
+        vscode.commands.registerCommand('overleaf-gitlive.showOutput', () => {
             outputChannel.show();
         }),
     );
 
     // ── Open Settings ──
     context.subscriptions.push(
-        vscode.commands.registerCommand('overleaf-gitbridge.openSettings', () => {
-            vscode.commands.executeCommand('workbench.action.openSettings', 'overleaf-gitbridge');
+        vscode.commands.registerCommand('overleaf-gitlive.openSettings', () => {
+            vscode.commands.executeCommand('workbench.action.openSettings', 'overleaf-gitlive');
         }),
     );
 
@@ -575,17 +575,17 @@ export function activate(context: vscode.ExtensionContext) {
         if (isOverleaf) {
             const autoStart = getConfig<string>('autoStart', 'off');
             if (autoStart === 'sync') {
-                vscode.commands.executeCommand('overleaf-gitbridge.startSync');
+                vscode.commands.executeCommand('overleaf-gitlive.startSync');
             } else if (autoStart === 'ask') {
                 vscode.window.showInformationMessage(
-                    'Overleaf GitBridge: Overleaf project detected.',
+                    'Overleaf GitLive: Overleaf project detected.',
                     'Start Sync',
                     'Start PDF Preview',
                 ).then(choice => {
                     if (choice === 'Start Sync') {
-                        vscode.commands.executeCommand('overleaf-gitbridge.startSync');
+                        vscode.commands.executeCommand('overleaf-gitlive.startSync');
                     } else if (choice === 'Start PDF Preview') {
-                        vscode.commands.executeCommand('overleaf-gitbridge.startPdfPreview');
+                        vscode.commands.executeCommand('overleaf-gitlive.startPdfPreview');
                     }
                 });
             }
@@ -854,7 +854,7 @@ async function annotatePartialCommitFileContent(
 }
 
 async function openRangeDiff(repoPath: string, fromSha: string, toSha: string): Promise<void> {
-    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitbridge-diff');
+    const tmpDir = path.join(os.tmpdir(), 'overleaf-gitlive-diff');
     if (!fs.existsSync(tmpDir)) {
         fs.mkdirSync(tmpDir, { recursive: true });
     }
@@ -871,7 +871,7 @@ async function openRangeDiff(repoPath: string, fromSha: string, toSha: string): 
             const nameOnly = (await execGit(repoPath, ['diff', '--name-only', baseRef, toSha])).trim();
             changedFiles = nameOnly ? nameOnly.split(/\r?\n/) : [];
         } catch (err: any) {
-            vscode.window.showErrorMessage(`Overleaf GitBridge: Could not get diff — ${err.message}`);
+            vscode.window.showErrorMessage(`Overleaf GitLive: Could not get diff — ${err.message}`);
             return;
         }
     }
@@ -885,10 +885,10 @@ async function openRangeDiff(repoPath: string, fromSha: string, toSha: string): 
     if (changedFiles.length === 0) {
         if (rawChangedCount > 0 && meaningfulChanged && meaningfulChanged.length === 0) {
             vscode.window.showInformationMessage(
-                'Overleaf GitBridge: Only whitespace/newline changes found (ignored).',
+                'Overleaf GitLive: Only whitespace/newline changes found (ignored).',
             );
         } else {
-            vscode.window.showInformationMessage('Overleaf GitBridge: No file changes in selected range.');
+            vscode.window.showInformationMessage('Overleaf GitLive: No file changes in selected range.');
         }
         return;
     }
@@ -1022,7 +1022,7 @@ async function openRangeDiff(repoPath: string, fromSha: string, toSha: string): 
             ? ` Marked ${markedLineCount} overwritten added line(s) in ${markedFileCount} file(s).`
             : '';
         vscode.window.showInformationMessage(
-            `Overleaf GitBridge: Opened ${opened} diff(s) for range ${fromSha}..${toSha}.${markerSuffix}`,
+            `Overleaf GitLive: Opened ${opened} diff(s) for range ${fromSha}..${toSha}.${markerSuffix}`,
         );
     }
 }

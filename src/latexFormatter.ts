@@ -3,7 +3,7 @@ import * as Prettier from 'prettier';
 import { prettierPluginLatex } from '@unified-latex/unified-latex-prettier';
 
 async function prettierFormat(text: string, options: vscode.FormattingOptions): Promise<string> {
-    const cfg = vscode.workspace.getConfiguration('overleaf-gitbridge');
+    const cfg = vscode.workspace.getConfiguration('overleaf-gitlive');
     const lineBreakEnabled = cfg.get<boolean>('formatter.lineBreak', true);
     const printWidth = lineBreakEnabled ? cfg.get<number>('formatter.printWidth', 80) : 10000;
 
@@ -59,7 +59,7 @@ class LatexRangeFormatter implements vscode.DocumentRangeFormattingEditProvider 
 }
 
 export function registerFormatter(context: vscode.ExtensionContext): void {
-    const cfg = vscode.workspace.getConfiguration('overleaf-gitbridge');
+    const cfg = vscode.workspace.getConfiguration('overleaf-gitlive');
     if (!cfg.get<boolean>('formatter.enabled', true)) {
         return;
     }

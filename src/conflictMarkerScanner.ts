@@ -41,7 +41,7 @@ export class ConflictMarkerScanner {
                             : line.text.startsWith('=======') ? 'Conflict separator'
                             : 'Conflict end marker';
                         const diag = new vscode.Diagnostic(range, msg, severity);
-                        diag.source = 'Overleaf GitBridge';
+                        diag.source = 'Overleaf GitLive';
                         diagnostics.push(diag);
                         totalMarkers++;
 
@@ -109,7 +109,7 @@ export class ConflictMarkerScanner {
                         : line.text.startsWith('=======') ? 'Conflict separator'
                         : 'Conflict end marker';
                     const diag = new vscode.Diagnostic(range, msg, severity);
-                    diag.source = 'Overleaf GitBridge';
+                    diag.source = 'Overleaf GitLive';
                     diagnostics.push(diag);
                 }
             }

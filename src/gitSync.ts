@@ -159,9 +159,9 @@ export class GitSyncEngine {
                     this.events.onMergeComplete(this._conflictFiles);
                 }
                 this.events.onStatusChange('conflict', 'Merge conflicts — resolve in editor');
-                vscode.window.showWarningMessage('Overleaf GitBridge: Merge has conflicts. Resolve them in the editor.');
+                vscode.window.showWarningMessage('Overleaf GitLive: Merge has conflicts. Resolve them in the editor.');
             } else {
-                vscode.window.showInformationMessage('Overleaf GitBridge: Pull & merge completed successfully.');
+                vscode.window.showInformationMessage('Overleaf GitLive: Pull & merge completed successfully.');
             }
         } catch (err: any) {
             this.log(`[Pull Error] ${err.message}`);
@@ -180,7 +180,7 @@ export class GitSyncEngine {
                 this.events.onStatusChange('conflict', 'Merge conflicts — resolve in editor');
             } else {
                 // Pull totally failed (e.g. "would be overwritten") — keep waiting
-                vscode.window.showErrorMessage(`Overleaf GitBridge: Pull failed — ${err.message}`);
+                vscode.window.showErrorMessage(`Overleaf GitLive: Pull failed — ${err.message}`);
                 this.events.onStatusChange('conflict', 'Pull failed — try Force Push or Terminal');
             }
         }
@@ -226,11 +226,11 @@ export class GitSyncEngine {
             this._conflictFiles = [];
             this._conflictNeedsMerge = false;
             this.events.onStatusChange('watching', 'Resolved (force pushed)');
-            vscode.window.showInformationMessage(`Overleaf GitBridge: Force push completed. Backup: ${backupBranch}`);
+            vscode.window.showInformationMessage(`Overleaf GitLive: Force push completed. Backup: ${backupBranch}`);
             await this.events.onPushSuccess();
         } catch (err: any) {
             this.log(`[Force Push Error] ${err.message}`);
-            vscode.window.showErrorMessage(`Overleaf GitBridge: Force push failed — ${err.message}`);
+            vscode.window.showErrorMessage(`Overleaf GitLive: Force push failed — ${err.message}`);
             this.events.onStatusChange('conflict', 'Force push failed');
         }
     }
@@ -306,7 +306,7 @@ export class GitSyncEngine {
     private getIgnorePatterns(): string[] {
         const hardcoded = ['.output*'];
         const userPatterns = vscode.workspace
-            .getConfiguration('overleaf-gitbridge')
+            .getConfiguration('overleaf-gitlive')
             .get<string[]>('ignorePatterns', ['.*']);
         // Merge and deduplicate
         const all = [...hardcoded, ...userPatterns];
@@ -359,7 +359,7 @@ export class GitSyncEngine {
 
     private getConflictStrategy(): string {
         return vscode.workspace
-            .getConfiguration('overleaf-gitbridge')
+            .getConfiguration('overleaf-gitlive')
             .get<string>('conflictStrategy', 'smart-merge');
     }
 
@@ -476,7 +476,7 @@ export class GitSyncEngine {
     private async safeAutoMerge(): Promise<void> {
         this.events.onStatusChange('pulling', 'Auto-merging (safe)...');
         try {
-            await execGit(this.repoPath, ['stash', 'push', '-m', 'overleaf-gitbridge-auto']);
+            await execGit(this.repoPath, ['stash', 'push', '-m', 'overleaf-gitlive-auto']);
             this.log('Stashed local changes.');
         } catch (err: any) {
             this.log(`Stash failed: ${err.message}. Skipping auto-merge.`);
@@ -1001,7 +1001,7 @@ export class GitSyncEngine {
 
             if (toAdd.length > 0) {
                 const suffix = content.endsWith('\n') || content === '' ? '' : '\n';
-                const block = `${suffix}# Overleaf GitBridge managed\n${toAdd.join('\n')}\n`;
+                const block = `${suffix}# Overleaf GitLive managed\n${toAdd.join('\n')}\n`;
                 fs.writeFileSync(excludePath, content + block, 'utf-8');
                 this.log(`Updated .git/info/exclude: added ${toAdd.join(', ')}`);
             }

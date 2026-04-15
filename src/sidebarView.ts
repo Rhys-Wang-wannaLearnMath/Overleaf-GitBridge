@@ -20,7 +20,7 @@ interface SidebarState {
 }
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'overleaf-gitbridge.sidebar';
+    public static readonly viewType = 'overleaf-gitlive.sidebar';
 
     private _view?: vscode.WebviewView;
 
@@ -164,17 +164,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 'var(--vscode-descriptionForeground)';
 
         const syncButtons = s.syncStatus === 'idle'
-            ? `<button class="btn btn-primary" onclick="cmd('overleaf-gitbridge.startSync')">▶  Start Sync</button>`
+            ? `<button class="btn btn-primary" onclick="cmd('overleaf-gitlive.startSync')">▶  Start Sync</button>`
             : `<div class="btn-row">
-                <button class="btn btn-danger" onclick="cmd('overleaf-gitbridge.stopSync')">⏹  Stop</button>
-                <button class="btn btn-secondary" onclick="cmd('overleaf-gitbridge.viewCommitDiff')">📊  View Diff</button>
+                <button class="btn btn-danger" onclick="cmd('overleaf-gitlive.stopSync')">⏹  Stop</button>
+                <button class="btn btn-secondary" onclick="cmd('overleaf-gitlive.viewCommitDiff')">📊  View Diff</button>
                </div>`;
 
         const pdfButtons = s.pdfState === 'stopped'
-            ? `<button class="btn btn-primary" onclick="cmd('overleaf-gitbridge.startPdfPreview')">▶  Start PDF Preview</button>`
+            ? `<button class="btn btn-primary" onclick="cmd('overleaf-gitlive.startPdfPreview')">▶  Start PDF Preview</button>`
             : `<div class="btn-row">
-                <button class="btn btn-danger" onclick="cmd('overleaf-gitbridge.stopPdfPreview')">⏹  Stop</button>
-                <button class="btn btn-secondary" onclick="cmd('overleaf-gitbridge.refreshPdf')">🔄  Refresh</button>
+                <button class="btn btn-danger" onclick="cmd('overleaf-gitlive.stopPdfPreview')">⏹  Stop</button>
+                <button class="btn btn-secondary" onclick="cmd('overleaf-gitlive.refreshPdf')">🔄  Refresh</button>
                </div>`;
 
         const projectSection = s.isOverleafProject
@@ -186,7 +186,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 <span class="status-icon">ℹ️</span>
                 <span class="status-text dim">No Overleaf project detected</span>
                </div>
-               <button class="btn btn-primary" onclick="cmd('overleaf-gitbridge.cloneProject')">📥  Clone Project</button>`;
+               <button class="btn btn-primary" onclick="cmd('overleaf-gitlive.cloneProject')">📥  Clone Project</button>`;
 
         return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -478,15 +478,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <!-- Credentials -->
     <div class="section">
         <div class="section-title">🔑 Credentials</div>
-        <div class="cred-row" onclick="cmd('overleaf-gitbridge.configureToken')">
+        <div class="cred-row" onclick="cmd('overleaf-gitlive.configureToken')">
             <span>${tokenIcon}</span>
             <span class="cred-label">Git Token: ${s.hasToken ? 'Configured' : '<b>Not set</b>'}</span>
         </div>
-        <div class="cred-row" onclick="cmd('overleaf-gitbridge.configureCookie')">
+        <div class="cred-row" onclick="cmd('overleaf-gitlive.configureCookie')">
             <span>${cookieIcon}</span>
             <span class="cred-label">Cookie: ${s.hasCookie ? 'Configured' : '<b>Not set</b>'}</span>
         </div>
-        <button class="link-btn" onclick="cmd('overleaf-gitbridge.clearCredentials')">Clear all credentials</button>
+        <button class="link-btn" onclick="cmd('overleaf-gitlive.clearCredentials')">Clear all credentials</button>
     </div>
 
     <!-- Project -->
@@ -522,12 +522,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             ${s.conflictFiles.map(f => `<li>📄 ${this._esc(f)}</li>`).join('')}
         </ul>
         <div class="conflict-section-label">Choose a resolution:</div>
-        <button class="btn btn-primary" onclick="cmd('overleaf-gitbridge.resolveConflict.pull')">⬇️  Pull &amp; Merge</button>
-        <button class="btn btn-secondary" onclick="cmd('overleaf-gitbridge.resolveConflict.diff')">✏️  Merge in Editor</button>
-        <button class="btn btn-success" onclick="cmd('overleaf-gitbridge.resolveConflict.markResolved')">✅  Mark Resolved</button>
+        <button class="btn btn-primary" onclick="cmd('overleaf-gitlive.resolveConflict.pull')">⬇️  Pull &amp; Merge</button>
+        <button class="btn btn-secondary" onclick="cmd('overleaf-gitlive.resolveConflict.diff')">✏️  Merge in Editor</button>
+        <button class="btn btn-success" onclick="cmd('overleaf-gitlive.resolveConflict.markResolved')">✅  Mark Resolved</button>
         <div class="btn-row">
-            <button class="btn btn-danger" onclick="cmd('overleaf-gitbridge.resolveConflict.forcePush')">⬆️  Force Push</button>
-            <button class="btn btn-secondary" onclick="cmd('overleaf-gitbridge.resolveConflict.terminal')">💻  Terminal</button>
+            <button class="btn btn-danger" onclick="cmd('overleaf-gitlive.resolveConflict.forcePush')">⬆️  Force Push</button>
+            <button class="btn btn-secondary" onclick="cmd('overleaf-gitlive.resolveConflict.terminal')">💻  Terminal</button>
         </div>
         <p class="conflict-hint">Resolve conflicts, then click "Mark Resolved" or save — sync will auto-commit &amp; push.</p>
     </div>` : ''}
@@ -546,8 +546,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     ${this._renderCommitHistory()}
 
     <div class="divider"></div>
-    <button class="link-btn" onclick="cmd('overleaf-gitbridge.showOutput')">📋 Show Output Log</button>
-    <button class="link-btn" onclick="cmd('overleaf-gitbridge.openSettings')">⚙️ Settings</button>
+    <button class="link-btn" onclick="cmd('overleaf-gitlive.showOutput')">📋 Show Output Log</button>
+    <button class="link-btn" onclick="cmd('overleaf-gitlive.openSettings')">⚙️ Settings</button>
 
 <script>
     const vscode = acquireVsCodeApi();

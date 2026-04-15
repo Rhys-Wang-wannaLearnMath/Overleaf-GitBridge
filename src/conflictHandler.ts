@@ -114,7 +114,7 @@ export async function handleConflict(
     outputChannel.show(true);
 
     const choice = await vscode.window.showWarningMessage(
-        `Overleaf GitBridge: Remote has ${info.remoteBehind} new commit(s) and you have ${info.localAhead} local commit(s). How do you want to resolve?`,
+        `Overleaf GitLive: Remote has ${info.remoteBehind} new commit(s) and you have ${info.localAhead} local commit(s). How do you want to resolve?`,
         { modal: false },
         'Pull & Merge',
         'Force Push',
@@ -125,11 +125,11 @@ export async function handleConflict(
         try {
             const pullResult = await execGit(info.repoPath, ['pull', '--no-rebase', 'origin', 'master']);
             outputChannel.appendLine(`[Pull] ${pullResult}`);
-            vscode.window.showInformationMessage('Overleaf GitBridge: Pull completed. Please resolve any merge conflicts in the editor.');
+            vscode.window.showInformationMessage('Overleaf GitLive: Pull completed. Please resolve any merge conflicts in the editor.');
             return 'pulled';
         } catch (err: any) {
             outputChannel.appendLine(`[Pull Error] ${err.message}`);
-            vscode.window.showErrorMessage(`Overleaf GitBridge: Pull failed — ${err.message}. Please resolve manually.`);
+            vscode.window.showErrorMessage(`Overleaf GitLive: Pull failed — ${err.message}. Please resolve manually.`);
             return 'cancelled';
         }
     }
@@ -154,11 +154,11 @@ export async function handleConflict(
 
                 const pushResult = await execGit(info.repoPath, ['push', '--force', 'origin', 'master']);
                 outputChannel.appendLine(`[Force Push] ${pushResult}`);
-                vscode.window.showInformationMessage(`Overleaf GitBridge: Force push completed. Backup: ${backupBranch}`);
+                vscode.window.showInformationMessage(`Overleaf GitLive: Force push completed. Backup: ${backupBranch}`);
                 return 'force_pushed';
             } catch (err: any) {
                 outputChannel.appendLine(`[Force Push Error] ${err.message}`);
-                vscode.window.showErrorMessage(`Overleaf GitBridge: Force push failed — ${err.message}`);
+                vscode.window.showErrorMessage(`Overleaf GitLive: Force push failed — ${err.message}`);
                 return 'cancelled';
             }
         }

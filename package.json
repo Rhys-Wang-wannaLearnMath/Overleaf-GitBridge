@@ -1,18 +1,23 @@
 {
-  "name": "overleaf-gitbridge",
-  "displayName": "Overleaf GitBridge",
-  "description": "Two-way Git sync and remote PDF preview for Overleaf projects — edit LaTeX in VS Code, auto-sync with collaborators, and compile PDFs without leaving the editor.",
-  "version": "0.1.0",
+  "name": "overleaf-gitlive",
+  "displayName": "Overleaf GitLive",
+  "description": "Two-way Git sync and remote PDF preview for Overleaf projects — auto commit/push/pull, smart conflict resolution, one-click clone, and built-in LaTeX formatter.",
+  "version": "0.1.1",
   "publisher": "RhysWang0405-vsc-studio",
-  "author": {
-    "name": "Rhys Wang",
-    "url": "https://github.com/Rhys-Wang-wannaLearnMath"
-  },
   "license": "MIT",
-  "homepage": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge#readme",
-  "bugs": {
-    "url": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge/issues"
+  "engines": {
+    "vscode": "^1.80.0"
   },
+  "icon": "resources/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitLive"
+  },
+  "categories": [
+    "Other",
+    "SCM Providers",
+    "Formatters"
+  ],
   "keywords": [
     "overleaf",
     "latex",
@@ -20,146 +25,138 @@
     "sync",
     "pdf",
     "preview",
-    "collaboration",
     "tex"
   ],
   "galleryBanner": {
-    "color": "#4A8B5C",
+    "color": "#4F8A10",
     "theme": "dark"
+  },
+  "homepage": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitLive#readme",
+  "bugs": {
+    "url": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitLive/issues"
   },
   "markdown": "github",
   "qna": "marketplace",
-  "engines": {
-    "vscode": "^1.80.0"
-  },
-  "icon": "resources/icon.png",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge"
-  },
-  "categories": [
-    "SCM Providers",
-    "Other"
-  ],
   "activationEvents": [
-    "workspaceContains:.git/config"
+    "workspaceContains:.git/config",
+    "onView:overleaf-gitlive.sidebar"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "overleaf-gitbridge.cloneProject",
-        "title": "Overleaf GitBridge: Clone Project",
+        "command": "overleaf-gitlive.cloneProject",
+        "title": "Overleaf GitLive: Clone Project",
         "icon": "$(cloud-download)"
       },
       {
-        "command": "overleaf-gitbridge.configureToken",
-        "title": "Overleaf GitBridge: Configure Git Token"
+        "command": "overleaf-gitlive.configureToken",
+        "title": "Overleaf GitLive: Configure Git Token"
       },
       {
-        "command": "overleaf-gitbridge.configureCookie",
-        "title": "Overleaf GitBridge: Configure Cookie"
+        "command": "overleaf-gitlive.configureCookie",
+        "title": "Overleaf GitLive: Configure Cookie"
       },
       {
-        "command": "overleaf-gitbridge.clearCredentials",
-        "title": "Overleaf GitBridge: Clear All Credentials"
+        "command": "overleaf-gitlive.clearCredentials",
+        "title": "Overleaf GitLive: Clear All Credentials"
       },
       {
-        "command": "overleaf-gitbridge.startSync",
-        "title": "Overleaf GitBridge: Start Git Sync"
+        "command": "overleaf-gitlive.startSync",
+        "title": "Overleaf GitLive: Start Git Sync"
       },
       {
-        "command": "overleaf-gitbridge.stopSync",
-        "title": "Overleaf GitBridge: Stop Git Sync"
+        "command": "overleaf-gitlive.stopSync",
+        "title": "Overleaf GitLive: Stop Git Sync"
       },
       {
-        "command": "overleaf-gitbridge.startPdfPreview",
-        "title": "Overleaf GitBridge: Start PDF Preview"
+        "command": "overleaf-gitlive.startPdfPreview",
+        "title": "Overleaf GitLive: Start PDF Preview"
       },
       {
-        "command": "overleaf-gitbridge.stopPdfPreview",
-        "title": "Overleaf GitBridge: Stop PDF Preview"
+        "command": "overleaf-gitlive.stopPdfPreview",
+        "title": "Overleaf GitLive: Stop PDF Preview"
       },
       {
-        "command": "overleaf-gitbridge.refreshPdf",
-        "title": "Overleaf GitBridge: Refresh PDF"
+        "command": "overleaf-gitlive.refreshPdf",
+        "title": "Overleaf GitLive: Refresh PDF"
       },
       {
-        "command": "overleaf-gitbridge.showOutput",
-        "title": "Overleaf GitBridge: Show Output Log",
+        "command": "overleaf-gitlive.showOutput",
+        "title": "Overleaf GitLive: Show Output Log",
         "icon": "$(output)"
       },
       {
-        "command": "overleaf-gitbridge.openSettings",
-        "title": "Overleaf GitBridge: Open Settings",
+        "command": "overleaf-gitlive.openSettings",
+        "title": "Overleaf GitLive: Open Settings",
         "icon": "$(gear)"
       },
       {
-        "command": "overleaf-gitbridge.resolveConflict.pull",
-        "title": "Overleaf GitBridge: Resolve Conflict — Pull & Merge"
+        "command": "overleaf-gitlive.resolveConflict.pull",
+        "title": "Overleaf GitLive: Resolve Conflict — Pull & Merge"
       },
       {
-        "command": "overleaf-gitbridge.resolveConflict.forcePush",
-        "title": "Overleaf GitBridge: Resolve Conflict — Force Push"
+        "command": "overleaf-gitlive.resolveConflict.forcePush",
+        "title": "Overleaf GitLive: Resolve Conflict — Force Push"
       },
       {
-        "command": "overleaf-gitbridge.resolveConflict.diff",
-        "title": "Overleaf GitBridge: Resolve Conflict — Open Diff"
+        "command": "overleaf-gitlive.resolveConflict.diff",
+        "title": "Overleaf GitLive: Resolve Conflict — Open Diff"
       },
       {
-        "command": "overleaf-gitbridge.resolveConflict.terminal",
-        "title": "Overleaf GitBridge: Resolve Conflict — Open Terminal"
+        "command": "overleaf-gitlive.resolveConflict.terminal",
+        "title": "Overleaf GitLive: Resolve Conflict — Open Terminal"
       },
       {
-        "command": "overleaf-gitbridge.resolveConflict.markResolved",
-        "title": "Overleaf GitBridge: Resolve Conflict — Mark Resolved"
+        "command": "overleaf-gitlive.resolveConflict.markResolved",
+        "title": "Overleaf GitLive: Resolve Conflict — Mark Resolved"
       },
       {
-        "command": "overleaf-gitbridge.viewCommitDiff",
-        "title": "Overleaf GitBridge: View Commit Diff",
+        "command": "overleaf-gitlive.viewCommitDiff",
+        "title": "Overleaf GitLive: View Commit Diff",
         "icon": "$(git-compare)"
       }
     ],
     "configuration": {
-      "title": "Overleaf GitBridge",
+      "title": "Overleaf GitLive",
       "properties": {
-        "overleaf-gitbridge.serverUrl": {
+        "overleaf-gitlive.serverUrl": {
           "type": "string",
           "default": "https://www.overleaf.com",
           "description": "Overleaf server URL"
         },
-        "overleaf-gitbridge.pollSeconds": {
+        "overleaf-gitlive.pollSeconds": {
           "type": "number",
           "default": 1,
           "minimum": 1,
           "maximum": 60,
           "description": "Git status polling interval in seconds"
         },
-        "overleaf-gitbridge.pdfPollSeconds": {
+        "overleaf-gitlive.pdfPollSeconds": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "maximum": 300,
           "description": "PDF periodic polling interval in seconds (0 = only trigger after push)"
         },
-        "overleaf-gitbridge.formatter.enabled": {
+        "overleaf-gitlive.formatter.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable built-in LaTeX formatter (Prettier + unified-latex)"
         },
-        "overleaf-gitbridge.formatter.lineBreak": {
+        "overleaf-gitlive.formatter.lineBreak": {
           "type": "boolean",
           "default": true,
           "description": "Auto-wrap lines at printWidth when formatting LaTeX"
         },
-        "overleaf-gitbridge.formatter.printWidth": {
+        "overleaf-gitlive.formatter.printWidth": {
           "type": "number",
           "default": 80,
           "minimum": 40,
           "maximum": 300,
           "description": "Line width for LaTeX formatting (when lineBreak is enabled)"
         },
-        "overleaf-gitbridge.ignorePatterns": {
+        "overleaf-gitlive.ignorePatterns": {
           "type": "array",
           "items": {
             "type": "string"
@@ -169,7 +166,7 @@
           ],
           "description": "Additional file/folder patterns to ignore during Git sync (glob format). '.output*' is always ignored."
         },
-        "overleaf-gitbridge.autoStart": {
+        "overleaf-gitlive.autoStart": {
           "type": "string",
           "enum": [
             "off",
@@ -184,7 +181,7 @@
           ],
           "description": "Behavior when an Overleaf project is detected on activation"
         },
-        "overleaf-gitbridge.diffViewMode": {
+        "overleaf-gitlive.diffViewMode": {
           "type": "string",
           "enum": [
             "sidebar",
@@ -197,7 +194,7 @@
           ],
           "description": "Where to browse and select commit diffs for review"
         },
-        "overleaf-gitbridge.conflictStrategy": {
+        "overleaf-gitlive.conflictStrategy": {
           "type": "string",
           "enum": [
             "smart-merge",
@@ -219,17 +216,17 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "overleaf-gitbridge",
-          "title": "Overleaf GitBridge",
+          "id": "overleaf-gitlive",
+          "title": "Overleaf GitLive",
           "icon": "resources/overleaf.svg"
         }
       ]
     },
     "views": {
-      "overleaf-gitbridge": [
+      "overleaf-gitlive": [
         {
-          "id": "overleaf-gitbridge.sidebar",
-          "name": "Overleaf GitBridge",
+          "id": "overleaf-gitlive.sidebar",
+          "name": "Overleaf GitLive",
           "type": "webview"
         }
       ]
@@ -237,30 +234,30 @@
     "menus": {
       "view/title": [
         {
-          "command": "overleaf-gitbridge.cloneProject",
-          "when": "view == overleaf-gitbridge.sidebar",
+          "command": "overleaf-gitlive.cloneProject",
+          "when": "view == overleaf-gitlive.sidebar",
           "group": "navigation@1"
         },
         {
-          "command": "overleaf-gitbridge.showOutput",
-          "when": "view == overleaf-gitbridge.sidebar",
+          "command": "overleaf-gitlive.showOutput",
+          "when": "view == overleaf-gitlive.sidebar",
           "group": "navigation@2"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "overleaf-gitbridge.refreshPdf",
+        "command": "overleaf-gitlive.refreshPdf",
         "key": "ctrl+alt+r",
         "mac": "cmd+alt+r"
       },
       {
-        "command": "overleaf-gitbridge.startSync",
+        "command": "overleaf-gitlive.startSync",
         "key": "ctrl+alt+s",
         "mac": "cmd+alt+s"
       },
       {
-        "command": "overleaf-gitbridge.viewCommitDiff",
+        "command": "overleaf-gitlive.viewCommitDiff",
         "key": "ctrl+alt+d",
         "mac": "cmd+alt+d"
       }

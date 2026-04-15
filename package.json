@@ -9,7 +9,7 @@
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/placeholder/overleaf-gitbridge"
+    "url": "https://github.com/Rhys-Wang-wannaLearnMath/Overleaf-GitBridge"
   },
   "categories": [
     "Other"
@@ -83,6 +83,15 @@
       {
         "command": "overleaf-gitbridge.resolveConflict.terminal",
         "title": "Overleaf GitBridge: Resolve Conflict — Open Terminal"
+      },
+      {
+        "command": "overleaf-gitbridge.resolveConflict.markResolved",
+        "title": "Overleaf GitBridge: Resolve Conflict — Mark Resolved"
+      },
+      {
+        "command": "overleaf-gitbridge.viewCommitDiff",
+        "title": "Overleaf GitBridge: View Commit Diff",
+        "icon": "$(git-compare)"
       }
     ],
     "configuration": {
@@ -93,16 +102,9 @@
           "default": "https://www.overleaf.com",
           "description": "Overleaf server URL"
         },
-        "overleaf-gitbridge.quietSeconds": {
-          "type": "number",
-          "default": 30,
-          "minimum": 5,
-          "maximum": 300,
-          "description": "Seconds to wait after last local edit before auto-commit (quiet period)"
-        },
         "overleaf-gitbridge.pollSeconds": {
           "type": "number",
-          "default": 2,
+          "default": 1,
           "minimum": 1,
           "maximum": 60,
           "description": "Git status polling interval in seconds"
@@ -140,6 +142,34 @@
             ".*"
           ],
           "description": "Additional file/folder patterns to ignore during Git sync (glob format). '.output*' is always ignored."
+        },
+        "overleaf-gitbridge.autoStart": {
+          "type": "string",
+          "enum": [
+            "off",
+            "ask",
+            "sync"
+          ],
+          "default": "off",
+          "enumDescriptions": [
+            "Do nothing on activation",
+            "Show a notification asking whether to start sync/PDF preview",
+            "Automatically start Git sync when an Overleaf project is detected"
+          ],
+          "description": "Behavior when an Overleaf project is detected on activation"
+        },
+        "overleaf-gitbridge.diffViewMode": {
+          "type": "string",
+          "enum": [
+            "sidebar",
+            "quickpick"
+          ],
+          "default": "sidebar",
+          "enumDescriptions": [
+            "Browse and select commit diffs in the sidebar panel",
+            "Use a QuickPick popup to select commit range"
+          ],
+          "description": "Where to browse and select commit diffs for review"
         },
         "overleaf-gitbridge.conflictStrategy": {
           "type": "string",
@@ -202,6 +232,11 @@
         "command": "overleaf-gitbridge.startSync",
         "key": "ctrl+alt+s",
         "mac": "cmd+alt+s"
+      },
+      {
+        "command": "overleaf-gitbridge.viewCommitDiff",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d"
       }
     ]
   },

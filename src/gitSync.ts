@@ -48,6 +48,17 @@ export class GitSyncEngine {
         return this.running;
     }
 
+    /**
+     * Gated wrapper for onStatusChange. Silently drops emissions when the
+     * engine is not running, so in-flight async work (a git push/pull that
+     * the user raced with a Stop click) cannot flip the UI back to a
+     * non-idle state after the engine has been stopped.
+     */
+    private emitStatus(status: SyncStatus, message: string): void {
+        if (!this.running) { return; }
+        this.events.onStatusChange(status, message);
+    }
+
     async start(): Promise<void> {
         if (this.running) { return; }
 
@@ -57,7 +68,7 @@ export class GitSyncEngine {
         await this.ensureGitExclude();
 
         this.running = true;
-        this.events.onStatusChange('watching', 'Sync started');
+        this.emitStatus('watching', 'Sync started');
         this.log('Sync engine started. Watching for changes...');
         this.log(`Rules: poll interval = ${this.pollSeconds}s, commit on detect`);
 
@@ -129,7 +140,7 @@ export class GitSyncEngine {
     async resolveWithPull(): Promise<void> {
         if (!this._inConflict) { return; }
         this.log('[Resolve] User chose Pull & Merge from sidebar.');
-        this.events.onStatusChange('pulling', 'Pulling & merging...');
+        this.emitStatus('pulling', 'Pulling & merging...');
 
         // First commit local changes so git pull can merge
         try {
@@ -144,7 +155,7 @@ export class GitSyncEngine {
             }
         } catch (err: any) {
             this.log(`[Pre-pull commit error] ${err.message}`);
-            this.events.onStatusChange('conflict', 'Cannot commit local changes — resolve manually');
+            this.emitStatus('conflict', 'Cannot commit local changes — resolve manually');
             return;
         }
 
@@ -158,7 +169,7 @@ export class GitSyncEngine {
                 if (this.events.onMergeComplete) {
                     this.events.onMergeComplete(this._conflictFiles);
                 }
-                this.events.onStatusChange('conflict', 'Merge conflicts — resolve in editor');
+                this.emitStatus('conflict', 'Merge conflicts — resolve in editor');
                 vscode.window.showWarningMessage('Overleaf GitLive: Merge has conflicts. Resolve them in the editor.');
             } else {
                 vscode.window.showInformationMessage('Overleaf GitLive: Pull & merge completed successfully.');
@@ -177,11 +188,11 @@ export class GitSyncEngine {
                 if (this.events.onMergeComplete) {
                     this.events.onMergeComplete(this._conflictFiles);
                 }
-                this.events.onStatusChange('conflict', 'Merge conflicts — resolve in editor');
+                this.emitStatus('conflict', 'Merge conflicts — resolve in editor');
             } else {
                 // Pull totally failed (e.g. "would be overwritten") — keep waiting
                 vscode.window.showErrorMessage(`Overleaf GitLive: Pull failed — ${err.message}`);
-                this.events.onStatusChange('conflict', 'Pull failed — try Force Push or Terminal');
+                this.emitStatus('conflict', 'Pull failed — try Force Push or Terminal');
             }
         }
     }
@@ -200,7 +211,7 @@ export class GitSyncEngine {
         if (confirm !== 'Yes, Force Push') { return; }
 
         this.log('[Resolve] User chose Force Push from sidebar.');
-        this.events.onStatusChange('pushing', 'Force pushing...');
+        this.emitStatus('pushing', 'Force pushing...');
         try {
             // Backup first
             const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -225,13 +236,13 @@ export class GitSyncEngine {
             this._inConflict = false;
             this._conflictFiles = [];
             this._conflictNeedsMerge = false;
-            this.events.onStatusChange('watching', 'Resolved (force pushed)');
+            this.emitStatus('watching', 'Resolved (force pushed)');
             vscode.window.showInformationMessage(`Overleaf GitLive: Force push completed. Backup: ${backupBranch}`);
             await this.events.onPushSuccess();
         } catch (err: any) {
             this.log(`[Force Push Error] ${err.message}`);
             vscode.window.showErrorMessage(`Overleaf GitLive: Force push failed — ${err.message}`);
-            this.events.onStatusChange('conflict', 'Force push failed');
+            this.emitStatus('conflict', 'Force push failed');
         }
     }
 
@@ -247,16 +258,20 @@ export class GitSyncEngine {
     }
 
     stop(): void {
+        if (!this.running) { return; }
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = undefined;
         }
-        this.running = false;
-        this.busy = false;
         this._inConflict = false;
         this._conflictFiles = [];
         this._conflictNeedsMerge = false;
-        this.events.onStatusChange('idle', 'Sync stopped');
+        // Emit 'idle' while running is still true so this notification goes
+        // through the guard; then flip the flag so any in-flight tick that
+        // resumes later has its subsequent emissions silently dropped.
+        this.emitStatus('idle', 'Sync stopped');
+        this.running = false;
+        this.busy = false;
         this.log('Sync engine stopped.');
     }
 
@@ -290,13 +305,14 @@ export class GitSyncEngine {
     }
 
     private async tick(): Promise<void> {
-        if (this.busy) { return; }
+        // Bail if the engine has been stopped since this tick was scheduled.
+        if (!this.running || this.busy) { return; }
         this.busy = true;
 
         try {
             await this.syncCycle();
         } catch (err: any) {
-            this.events.onStatusChange('error', err.message);
+            this.emitStatus('error', err.message);
             this.log(`Error: ${err.message}`);
         }
 
@@ -394,7 +410,7 @@ export class GitSyncEngine {
         if (strategy === 'local-first') {
             // Keep local version, commit and force push
             this.log('Strategy: local-first. Committing local and force pushing...');
-            this.events.onStatusChange('pushing', 'Local-first: force pushing...');
+            this.emitStatus('pushing', 'Local-first: force pushing...');
             try {
                 const pathspec = this.buildPathspec();
                 await this.safeAdd(pathspec);
@@ -406,12 +422,12 @@ export class GitSyncEngine {
                 }
                 await execGit(this.repoPath, ['push', '--force', this.remote, this.branch]);
                 this.log('Local-first force push successful.');
-                this.events.onStatusChange('watching', 'Synced (local-first)');
+                this.emitStatus('watching', 'Synced (local-first)');
                 this.resetPending();
                 await this.events.onPushSuccess();
             } catch (err: any) {
                 this.log(`Local-first push failed: ${err.message}`);
-                this.events.onStatusChange('error', 'Local-first push failed');
+                this.emitStatus('error', 'Local-first push failed');
             }
             return;
         }
@@ -419,7 +435,7 @@ export class GitSyncEngine {
         if (strategy === 'remote-first') {
             // Discard local changes on conflicting files, pull remote
             this.log('Strategy: remote-first. Discarding local changes on conflicting files.');
-            this.events.onStatusChange('pulling', 'Remote-first: pulling...');
+            this.emitStatus('pulling', 'Remote-first: pulling...');
             try {
                 // Checkout remote versions of conflicting files
                 for (const f of fileResult.conflicting) {
@@ -429,7 +445,7 @@ export class GitSyncEngine {
                 await this.safeAutoMerge();
             } catch (err: any) {
                 this.log(`Remote-first failed: ${err.message}`);
-                this.events.onStatusChange('error', 'Remote-first merge failed');
+                this.emitStatus('error', 'Remote-first merge failed');
             }
             return;
         }
@@ -455,7 +471,7 @@ export class GitSyncEngine {
         this._conflictNeedsMerge = true;
 
         const diffSummary = await getDiffSummary(this.repoPath, this.remote, this.branch);
-        this.events.onStatusChange('conflict', `Conflict in ${conflicting.length} file(s)`);
+        this.emitStatus('conflict', `Conflict in ${conflicting.length} file(s)`);
 
         if (this.events.onConflict) {
             this.events.onConflict(conflicting, fileResult, diffSummary, counts.ahead, counts.behind);
@@ -474,7 +490,7 @@ export class GitSyncEngine {
      * Used when remote and local modify different files.
      */
     private async safeAutoMerge(): Promise<void> {
-        this.events.onStatusChange('pulling', 'Auto-merging (safe)...');
+        this.emitStatus('pulling', 'Auto-merging (safe)...');
         try {
             await execGit(this.repoPath, ['stash', 'push', '-m', 'overleaf-gitlive-auto']);
             this.log('Stashed local changes.');
@@ -489,17 +505,17 @@ export class GitSyncEngine {
         } catch (err: any) {
             this.log(`Pull after stash failed: ${err.message}. Popping stash.`);
             try { await execGit(this.repoPath, ['stash', 'pop']); } catch { /* ignore */ }
-            this.events.onStatusChange('error', 'Auto-merge pull failed');
+            this.emitStatus('error', 'Auto-merge pull failed');
             return;
         }
 
         try {
             await execGit(this.repoPath, ['stash', 'pop']);
             this.log('Popped stash. Local + remote changes merged.');
-            this.events.onStatusChange('watching', 'Auto-merged remote changes');
+            this.emitStatus('watching', 'Auto-merged remote changes');
         } catch (err: any) {
             this.log(`Stash pop failed (unexpected conflict): ${err.message}`);
-            this.events.onStatusChange('conflict', 'Stash pop conflict');
+            this.emitStatus('conflict', 'Stash pop conflict');
         }
     }
 
@@ -561,7 +577,7 @@ export class GitSyncEngine {
      */
     private async commitConflictResolution(): Promise<void> {
         this.log('Committing conflict resolution...');
-        this.events.onStatusChange('committing', 'Committing resolution...');
+        this.emitStatus('committing', 'Committing resolution...');
 
         try {
             await this.addConflictFiles();
@@ -591,10 +607,10 @@ export class GitSyncEngine {
             this._inConflict = false;
             this._conflictFiles = [];
             this._conflictNeedsMerge = false;
-            this.events.onStatusChange('watching', 'Conflict resolved');
+            this.emitStatus('watching', 'Conflict resolved');
         } catch (err: any) {
             this.log(`Conflict resolution commit/push failed: ${err.message}`);
-            this.events.onStatusChange('conflict', 'Push failed after resolve');
+            this.emitStatus('conflict', 'Push failed after resolve');
         }
     }
 
@@ -687,38 +703,38 @@ export class GitSyncEngine {
             // Local has no uncommitted changes (we're in the no-status branch),
             // so we can safely reset to the remote.
             this.log(`Remote history rewritten (Overleaf restore?). Local ahead=${counts.ahead}, behind=${counts.behind}. Resetting to remote...`);
-            this.events.onStatusChange('pulling', 'Remote restored — resetting to remote...');
+            this.emitStatus('pulling', 'Remote restored — resetting to remote...');
             try {
                 await execGit(this.repoPath, ['reset', '--hard', `${this.remote}/${this.branch}`]);
                 this.log('Reset to remote successful after history rewrite.');
                 await this.emitPulledCommits(headBefore);
-                this.events.onStatusChange('watching', 'Synced (remote restored)');
+                this.emitStatus('watching', 'Synced (remote restored)');
             } catch (err: any) {
                 this.log(`Reset to remote failed: ${err.message}`);
-                this.events.onStatusChange('error', 'Reset to remote failed');
+                this.emitStatus('error', 'Reset to remote failed');
             }
             return;
         }
 
         if (counts.behind > 0 && counts.ahead === 0) {
-            this.events.onStatusChange('pulling', 'Pulling remote changes...');
+            this.emitStatus('pulling', 'Pulling remote changes...');
             this.log(`Remote has ${counts.behind} new commit(s). Auto-pulling...`);
             try {
                 const result = await execGit(this.repoPath, ['pull', '--ff-only', this.remote, this.branch]);
                 this.log(`Pull successful: ${result.trim()}`);
                 await this.emitPulledCommits(headBefore);
-                this.events.onStatusChange('watching', 'Pulled remote changes');
+                this.emitStatus('watching', 'Pulled remote changes');
             } catch (err: any) {
                 this.log(`Auto-pull failed: ${err.message}`);
-                this.events.onStatusChange('error', 'Pull failed');
+                this.emitStatus('error', 'Pull failed');
             }
         } else if (counts.behind === 0) {
-            this.events.onStatusChange('watching', 'Synced');
+            this.emitStatus('watching', 'Synced');
         } else {
             // ahead > 0 && behind > 0 with clean working tree:
             // local commits exist but remote also has new commits — try merge
             this.log(`Diverged: ${counts.ahead} ahead, ${counts.behind} behind (clean working tree).`);
-            this.events.onStatusChange('pulling', 'Merging diverged branches...');
+            this.emitStatus('pulling', 'Merging diverged branches...');
             try {
                 await execGit(this.repoPath, ['pull', '--no-rebase', this.remote, this.branch]);
                 this.log('Merge successful. Pushing...');
@@ -736,7 +752,7 @@ export class GitSyncEngine {
                     if (this.events.onMergeComplete) {
                         this.events.onMergeComplete(this._conflictFiles);
                     }
-                    this.events.onStatusChange('conflict', 'Merge conflicts — resolve in editor');
+                    this.emitStatus('conflict', 'Merge conflicts — resolve in editor');
                 } else {
                     await this.enterConflictFlow(counts);
                 }
@@ -837,14 +853,14 @@ export class GitSyncEngine {
     }
 
     private async commitAndPush(): Promise<void> {
-        this.events.onStatusChange('committing', 'Committing...');
+        this.emitStatus('committing', 'Committing...');
 
         try {
             const pathspec = this.buildPathspec();
             await this.safeAdd(pathspec);
         } catch (err: any) {
             this.log(`git add failed: ${err.message}`);
-            this.events.onStatusChange('error', 'git add failed');
+            this.emitStatus('error', 'git add failed');
             return;
         }
 
@@ -866,7 +882,7 @@ export class GitSyncEngine {
             this.log(`Committed: ${commitMsg}`);
         } catch (err: any) {
             this.log(`Commit failed: ${err.message}`);
-            this.events.onStatusChange('error', 'Commit failed');
+            this.emitStatus('error', 'Commit failed');
             this.resetPending();
             return;
         }
@@ -906,7 +922,7 @@ export class GitSyncEngine {
             await execGit(this.repoPath, ['fetch', this.remote, `+refs/heads/${this.branch}:refs/remotes/${this.remote}/${this.branch}`, '--quiet']);
         } catch (err: any) {
             this.log(`Fetch failed before push: ${err.message}`);
-            this.events.onStatusChange('error', 'Fetch failed');
+            this.emitStatus('error', 'Fetch failed');
             this.resetPending();
             return;
         }
@@ -927,11 +943,11 @@ export class GitSyncEngine {
     }
 
     private async doPush(): Promise<void> {
-        this.events.onStatusChange('pushing', 'Pushing...');
+        this.emitStatus('pushing', 'Pushing...');
         try {
             await execGit(this.repoPath, ['push', this.remote, this.branch]);
             this.log('Push successful.');
-            this.events.onStatusChange('watching', 'Synced');
+            this.emitStatus('watching', 'Synced');
             await this.events.onPushSuccess();
         } catch (err: any) {
             const msg = (err.message || '').toLowerCase();
@@ -942,14 +958,14 @@ export class GitSyncEngine {
 
             if (isRejected) {
                 this.log('Push rejected (remote has new commits). Attempting auto pull --rebase...');
-                this.events.onStatusChange('pulling', 'Pull & rebase...');
+                this.emitStatus('pulling', 'Pull & rebase...');
                 try {
                     await execGit(this.repoPath, ['pull', '--rebase', this.remote, this.branch]);
                     this.log('Rebase successful. Retrying push...');
-                    this.events.onStatusChange('pushing', 'Retrying push...');
+                    this.emitStatus('pushing', 'Retrying push...');
                     await execGit(this.repoPath, ['push', this.remote, this.branch]);
                     this.log('Push successful after rebase.');
-                    this.events.onStatusChange('watching', 'Synced');
+                    this.emitStatus('watching', 'Synced');
                     await this.events.onPushSuccess();
                 } catch (rebaseErr: any) {
                     // Rebase failed (real conflict) — abort and enter sidebar conflict flow
@@ -960,7 +976,7 @@ export class GitSyncEngine {
                 }
             } else {
                 this.log(`Push failed: ${err.message}`);
-                this.events.onStatusChange('error', 'Push failed');
+                this.emitStatus('error', 'Push failed');
             }
         }
     }

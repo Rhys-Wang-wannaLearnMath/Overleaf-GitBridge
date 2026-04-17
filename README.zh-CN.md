@@ -152,25 +152,115 @@ Diff 行为补充：
 
 ## 开发
 
+### 前置依赖
+
+- **Node.js** ≥ 18（与 `package.json` 中 `@types/node` 的版本对应）
+- **npm**（随 Node.js 安装）
+- **VS Code** ≥ 1.80（对应 `engines.vscode` 字段）
+- **`@vscode/vsce`** — 打包/发布用，按需安装（见下文）
+
+### 安装依赖
+
 ```bash
 npm install
+```
+
+### 编译
+
+一次性构建 —— 将 TypeScript 编译为 `out/` 目录下的 JS + source map：
+
+```bash
 npm run compile
-# 按 F5 在 Extension Development Host 中调试
+```
+
+开发时推荐使用增量监听模式（保存时自动重新编译）：
+
+```bash
+npm run watch
+```
+
+两条脚本都会基于 `tsconfig.json` 执行 `tsc -p ./`（`rootDir: src`、`outDir: out`、`target: ES2020`、开启 strict 模式）。
+
+### 在 Extension Development Host 中调试
+
+1. 用 VS Code 打开本项目
+2. 按 `F5`（或运行默认的 **Run Extension** 启动配置）
+3. 会弹出一个加载了本插件的新 VS Code 窗口；在真实 Overleaf 项目里打开即可验证同步 / PDF 预览行为
+
+### 清理构建产物
+
+```bash
+rm -rf out *.vsix
 ```
 
 ### 项目结构
 
 ```
 src/
-  extension.ts        # 插件入口，命令注册
-  gitSync.ts          # Git 双向同步引擎
-  conflictHandler.ts  # 冲突检测
-  conflictDiffView.ts # 交互式合并编辑器
-  cloneManager.ts     # 项目 clone 管理
-  sidebarView.ts      # 侧边栏 Webview UI
-  pdfManager.ts       # PDF 编译与预览
-  gitUtils.ts         # Git 命令封装
+  extension.ts            # 插件入口、命令注册、状态栏与 webview 接线
+  gitSync.ts              # Git 双向同步引擎（poll / commit / push / pull / 冲突处理）
+  conflictHandler.ts      # 冲突检测（文件级 overlap、ahead/behind 计算、diff 摘要）
+  conflictDiffView.ts     # 交互式合并编辑器（Accept Current / Incoming / Both）
+  conflictMarkerScanner.ts# 实时扫描 <<<<<<< 等冲突标记
+  cloneManager.ts         # Overleaf 项目一键 clone
+  sidebarView.ts          # 侧边栏 Webview UI（凭证 / 同步 / 冲突 / commit 历史）
+  pdfPanel.ts             # PDF 编译结果在 VS Code 中的预览面板
+  poller.ts               # PDF 编译轮询器
+  api.ts                  # Overleaf Web API（登录、项目列表、编译触发）
+  auth.ts                 # SecretStorage 中 token / cookie 的读写封装
+  sessionManager.ts       # Overleaf 会话状态
+  latexFormatter.ts       # Prettier + unified-latex 内置格式化器
+  gitUtils.ts             # Git 命令调用封装
 ```
+
+## 打包
+
+### 生成 `.vsix`
+
+打包依赖 [`@vscode/vsce`](https://github.com/microsoft/vscode-vsce)。`vscode:prepublish` 钩子会在打包前自动执行 `npm run compile`，保证 VSIX 中的 `out/` 始终是最新的编译产物。
+
+无需全局安装的一次性用法：
+
+```bash
+npx @vscode/vsce package
+```
+
+或先全局安装一次，之后重复使用：
+
+```bash
+npm install -g @vscode/vsce
+vsce package
+```
+
+产物为项目根目录下的 `overleaf-gitlive-<version>.vsix`，其中 `<version>` 取自 `package.json` 的 `version` 字段（当前为 `0.1.2`）。被排除出 VSIX 的文件列表见 `.vscodeignore`（源码、`tsconfig.json`、`.git/`、`README.zh-CN.md`、旧的 `*.vsix` 等）。
+
+### 本地安装 `.vsix`
+
+命令行安装：
+
+```bash
+code --install-extension overleaf-gitlive-<version>.vsix
+```
+
+或在 VS Code UI 中：**扩展面板 → `···` → 从 VSIX 安装…** → 选择对应文件。
+
+卸载：
+
+```bash
+code --uninstall-extension RhysWang0405-vsc-studio.overleaf-gitlive
+```
+
+### 发布到 VS Code Marketplace（仅维护者）
+
+```bash
+# 先在 package.json 中升版本号（例如 0.1.2 → 0.1.3），再发布：
+vsce publish
+
+# 或者一步到位自动升版本 + 发布：
+vsce publish patch   # patch / minor / major
+```
+
+发布需要 `RhysWang0405-vsc-studio` 发布者的 Personal Access Token。详细流程参考 [VSCE 官方文档](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)。
 
 ## 许可证
 

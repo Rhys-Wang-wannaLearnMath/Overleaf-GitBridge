@@ -151,31 +151,96 @@ All settings are prefixed with `overleaf-gitlive.`.
 
 ## Development
 
+### Prerequisites
+
+- **Node.js** ≥ 18 (matching `@types/node` in `package.json`)
+- **npm** (bundled with Node.js)
+- **VS Code** ≥ 1.80 (matching the `engines.vscode` field)
+- **`@vscode/vsce`** — for packaging/publishing (installed on demand, see below)
+
+### Install dependencies
+
 ```bash
 npm install
-npm run compile
-# Press F5 to launch Extension Development Host
 ```
 
-### Build VSIX
+### Compile
+
+One-off build — emits JavaScript + source maps to `out/`:
+
+```bash
+npm run compile
+```
+
+Incremental watch mode (recommended during development — recompiles on save):
+
+```bash
+npm run watch
+```
+
+Both scripts run `tsc -p ./` against `tsconfig.json` (`rootDir: src`, `outDir: out`, `target: ES2020`, strict mode on).
+
+### Run in Extension Development Host
+
+1. Open the project folder in VS Code.
+2. Press `F5` (or run the default **Run Extension** launch configuration).
+3. A new VS Code window opens with the extension loaded — use it on a real Overleaf-cloned workspace to exercise sync and PDF preview.
+
+### Clean build artifacts
+
+```bash
+rm -rf out *.vsix
+```
+
+## Packaging
+
+### Build a `.vsix`
+
+Packaging uses [`@vscode/vsce`](https://github.com/microsoft/vscode-vsce). The `vscode:prepublish` script automatically runs `npm run compile` before packaging, so `out/` is always up-to-date in the produced VSIX.
+
+One-shot (no global install required):
+
+```bash
+npx @vscode/vsce package
+```
+
+Or install the CLI globally once, then reuse:
 
 ```bash
 npm install -g @vscode/vsce
-npm install
 vsce package
 ```
 
-This produces a `.vsix` file in the project root. Install it in VS Code via:
+The output is `overleaf-gitlive-<version>.vsix` in the project root, where `<version>` comes from `package.json`'s `version` field (currently `0.1.2`). Files excluded from the VSIX are defined in `.vscodeignore` (source, `tsconfig.json`, `.git/`, `README.zh-CN.md`, previous `*.vsix`, etc.).
 
-```
-Extensions panel → ··· → Install from VSIX…
-```
+### Install the `.vsix` locally
 
-or from the terminal:
+From a terminal:
 
 ```bash
-code --install-extension overleaf-gitlive-*.vsix
+code --install-extension overleaf-gitlive-<version>.vsix
 ```
+
+Or from the VS Code UI: **Extensions panel → `···` → Install from VSIX…** → pick the file.
+
+To uninstall:
+
+```bash
+code --uninstall-extension RhysWang0405-vsc-studio.overleaf-gitlive
+```
+
+### Publish to the VS Code Marketplace (maintainers only)
+
+```bash
+# Bump the "version" field in package.json first (e.g. 0.1.2 → 0.1.3),
+# then publish the current version:
+vsce publish
+
+# Or bump + publish in one step:
+vsce publish patch   # patch / minor / major
+```
+
+Publishing requires a Personal Access Token for the `RhysWang0405-vsc-studio` publisher. See the [official VSCE guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) for token setup.
 
 ## License
 

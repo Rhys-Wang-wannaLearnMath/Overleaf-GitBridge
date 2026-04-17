@@ -2,7 +2,7 @@
   "name": "overleaf-gitlive",
   "displayName": "Overleaf GitLive",
   "description": "Two-way Git sync and remote PDF preview for Overleaf projects — auto commit/push/pull, smart conflict resolution, one-click clone, and built-in LaTeX formatter.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "RhysWang0405-vsc-studio",
   "license": "MIT",
   "engines": {
